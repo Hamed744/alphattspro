@@ -1,0 +1,16 @@
+{
+  "name": "alpha-tts-proxy",
+  "version": "1.0.0",
+  "description": "Proxy service for Alpha TTS to bypass Hugging Face filtering.",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "express": "^4.18.2",
+    "express-http-proxy": "^2.1.0"
+  },
+  "engines": {
+    "node": ">=14.0.0"
+  }
+}
