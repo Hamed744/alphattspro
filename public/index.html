@@ -319,7 +319,7 @@
             { id: "Achernar", name: "مریم (زن)", desc: "حرفه‌ای و واضح", imgUrl: "https://uploadkon.ir/uploads/4c2905_25IMG-۲۰۲۵۰۷۰۵-۱۱۴۰۳۶.jpg" },
             { id: "Alnilam", name: "بهرام (مرد)", desc: "حماسی و نافذ", imgUrl: "https://uploadkon.ir/uploads/f0c205_25IMG-۲۰۲۵۰۷۰۵-۱۱۴۲۲۰.jpg" },
             { id: "Schedar", name: "نیکان (مرد)", desc: "مهربان و شیرین", imgUrl: "https://uploadkon.ir/uploads/d37a05_25IMG-۲۰۲۵۰۷۰۵-۱۱۴۳۲۵.jpg" }, // Changed to male
-            { id: "Gacrux", name: "فرناز (زن)", desc: "پخته و قابل اعتماد", imgUrl: "https://uploadkon.ir/uploads/cff705_25IMG-۲۰۲۵۰۷۰۵-۱۱۴۶۰۵.jpg" }, // Changed to female
+            { id: "Gacrux", name: "فرناز (زن)", desc: "پخته و قابل اعتماد", imgUrl: "https://uploadkon.ir/uploads/cff705_25IMG-۲۰۲۵۰۷۰۵-۱۱۴۶05.jpg" }, // Changed to female
             { id: "Pulcherrima", name: "سارا (زن)", desc: "جذاب و مدرن", imgUrl: "https://uploadkon.ir/uploads/acb105_25IMG-۲۰۲۵۰۷۰۵-۱۱۴۷۴۳.jpg" },
             { id: "Umbriel", name: "مانی (مرد)", desc: "خلاق و متفاوت", imgUrl: "https://uploadkon.ir/uploads/68b505_25IMG-۲۰۲۵۰۷۰۵-۱۱۴۹۱۴.jpg" },
             { id: "Algieba", name: "آرتین (مرد)", desc: "با اصالت و شیک", imgUrl: "https://uploadkon.ir/uploads/571005_25IMG-۲۰۲۵۰۷۰۵-۱۱۵۰۳۹.jpg" }, // Changed to male
@@ -436,11 +436,25 @@
         
         async function processAudioForWaveform(audioBuffer) {
             if (!audioBuffer) { audioPeaks = []; return; }
+
+            const width = audioWaveformCanvas.offsetWidth;
+            const height = audioWaveformCanvas.offsetHeight;
+
+            // IMPORTANT: If canvas not yet rendered/sized, retry on next frame
+            if (width === 0 || height === 0) {
+                // console.warn("Canvas dimensions not ready, retrying waveform processing..."); // Uncomment for debugging
+                requestAnimationFrame(() => processAudioForWaveform(audioBuffer));
+                return;
+            }
+
             const channelData = audioBuffer.getChannelData(0);
-            // Calculate numBars based on current visual width of the canvas
-            const numBars = Math.floor(audioWaveformCanvas.offsetWidth / 5); // 5 = barWidth(3) + barGap(2)
+            const barWidth = 3;
+            const barGap = 2;
+            const totalBarAndGap = barWidth + barGap;
+            const numBars = Math.floor(width / totalBarAndGap); // Use the correct, non-zero width
             const samplesPerBar = Math.floor(channelData.length / numBars);
             const peaks = [];
+
             for (let i = 0; i < numBars; i++) {
                 let maxPeak = 0;
                 const start = i * samplesPerBar;
@@ -453,7 +467,7 @@
                 peaks.push(Math.min(1, Math.max(0, maxPeak * 1.5))); // Amplify for better visuals
             }
             audioPeaks = peaks;
-            // Draw initial waveform on the next available frame to ensure canvas is ready
+            // Draw initial waveform on the next available frame
             requestAnimationFrame(() => drawWaveform(0));
         }
         
@@ -475,7 +489,7 @@
                 const response = await fetch(hiddenAudioPlayer.src);
                 const arrayBuffer = await response.arrayBuffer();
                 const decodedBuffer = await audioContext.decodeAudioData(arrayBuffer);
-                await processAudioForWaveform(decodedBuffer);
+                await processAudioForWaveform(decodedBuffer); // This now includes the retry logic
             } catch (e) {
                 console.error("Error decoding audio for waveform:", e);
                 audioPeaks = [];
