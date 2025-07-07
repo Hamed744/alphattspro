@@ -5,97 +5,93 @@ const path = require('path');
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// لیست آدرس های اسپیس های شما
-const HF_TARGETS = [
+// ====================================================================
+// ۱. لیست تمام اسپیس‌های شما
+// ====================================================================
+const HF_SPACES = [
     'hamed744-ttspro.hf.space',
     'hamed744-ttspro2.hf.space',
     'hamed744-ttspro3.hf.space'
 ];
 
-// این متغیر، شمارنده مرکزی ما برای توزیع بار است
-let currentTargetIndex = 0;
+// ====================================================================
+// ۲. ابزارهای مدیریت جلسات چسبنده
+// ====================================================================
+// یک شمارنده برای انتخاب چرخشی اسپیس برای درخواست‌های جدید
+let currentSpaceIndex = 0;
+// یک Map برای ذخیره اینکه هر session_hash به کدام اسپیس تعلق دارد
+// key: session_hash, value: hostname (e.g., 'hamed744-ttspro.hf.space')
+const sessionMap = new Map();
 
-// تابعی برای انتخاب سرور بعدی به صورت چرخشی
-const getNextTarget = () => {
-    const target = HF_TARGETS[currentTargetIndex];
-    // شمارنده را برای درخواست بعدی افزایش می دهیم
-    currentTargetIndex = (currentTargetIndex + 1) % HF_TARGETS.length;
-    return target;
-};
+// این middleware برای خواندن اطلاعات از بدنه درخواست POST (برای پیدا کردن session_hash) ضروری است
+app.use(express.json());
 
-// دیکشنری برای نگهداری اینکه هر session_hash به کدام سرور ارسال شده است
-// این کلیدی ترین بخش برای حل مشکل است!
-const sessionTargetMap = {};
-
-// سرویس دهی فایل های استاتیک (index.html, css, js)
+// سرو کردن فایل‌های استاتیک از پوشه public
 app.use(express.static(path.join(__dirname, 'public')));
 
-// *** بخش اصلی تغییرات اینجاست ***
-// پروکسی ما حالا به یک مسیر ثابت گوش می دهد، درست مثل کد اولیه شما
+
+// ====================================================================
+// ۳. منطق اصلی پراکسی با قابلیت Sticky Session
+// ====================================================================
 app.use('/gradio_api', proxy(
+    // این تابع به ازای هر درخواست اجرا شده و تصمیم می‌گیرد آن را به کدام اسپیس بفرستد
     (req) => {
-        const sessionHash = req.query.session_hash;
+        // ابتدا session_hash را از پارامترهای GET یا بدنه POST استخراج می‌کنیم
+        const sessionHash = req.query.session_hash || (req.body && req.body.session_hash);
 
-        // اگر درخواست برای دانلود فایل صوتی است (که session_hash ندارد)
-        // یا اگر درخواست برای دریافت داده (queue/data) است
-        if (req.path.startsWith('/file=') || (req.path.startsWith('/queue/data') && sessionHash)) {
-            // سروری که قبلا برای این session انتخاب شده را پیدا می کنیم
-            const targetHost = sessionTargetMap[sessionHash];
-            if (targetHost) {
-                console.log(`SESSION ${sessionHash} -> Re-routing to EXISTING target: ${targetHost}`);
-                return targetHost;
-            }
+        // اگر session_hash وجود داشت و ما قبلاً برای آن یک اسپیس تعیین کرده بودیم...
+        if (sessionHash && sessionMap.has(sessionHash)) {
+            const targetSpace = sessionMap.get(sessionHash);
+            console.log(`[STICKY] Session: ${sessionHash} -> Reusing Space: ${targetSpace}`);
+            // ... درخواست را به همان اسپیس قبلی بفرست
+            return targetSpace;
         }
 
-        // اگر یک درخواست جدید برای شروع کار (queue/join) است
-        if (req.path.startsWith('/queue/join')) {
-            // یک سرور جدید به صورت چرخشی انتخاب می کنیم
-            const targetHost = getNextTarget();
-            
-            // در بدنه درخواست (body)، session_hash را پیدا کرده و در دیکشنری ذخیره می کنیم
-            // express.json() برای خواندن body لازم است
-            const newSessionHash = req.body.session_hash;
-            if (newSessionHash) {
-                sessionTargetMap[newSessionHash] = targetHost;
-                console.log(`SESSION ${newSessionHash} -> Assigned NEW target: ${targetHost}`);
-                
-                // یک تایمر برای پاک کردن session از حافظه بعد از مدتی (مثلا 5 دقیقه)
-                // تا حافظه سرور پر نشود
-                setTimeout(() => {
-                    delete sessionTargetMap[newSessionHash];
-                    console.log(`SESSION ${newSessionHash} -> Expired and removed.`);
-                }, 300000); // 5 minutes in milliseconds
-            }
-            
-            return targetHost;
-        }
+        // اگر session_hash جدید بود یا اصلاً وجود نداشت (یک درخواست کاملا جدید)
+        // با استفاده از منطق چرخشی یک اسپیس جدید انتخاب کن
+        const targetSpace = HF_SPACES[currentSpaceIndex];
+        console.log(`[NEW] Request: ${req.originalUrl} -> Assigning new Space: ${targetSpace}`);
+        
+        // شمارنده را برای درخواست بعدی یک واحد جلو ببر و اگر به انتها رسید به اول برگردان
+        currentSpaceIndex = (currentSpaceIndex + 1) % HF_SPACES.length;
 
-        // برای هر حالت دیگری، به صورت پیش فرض به سرور اول می فرستیم (این حالت نباید زیاد رخ دهد)
-        console.warn(`Unhandled path: ${req.path}. Falling back to default.`);
-        return HF_TARGETS[0];
-    }, 
+        // اگر درخواست ما session_hash داشت، آن را در حافظه ذخیره کن تا درخواست‌های بعدی همین جلسه به همین اسپیس بیایند
+        if (sessionHash) {
+            console.log(`[STICKY] Storing Session: ${sessionHash} -> Mapped to: ${targetSpace}`);
+            sessionMap.set(sessionHash, targetSpace);
+
+            // (اختیاری ولی بسیار مفید) یک تایمر برای پاک کردن session_hash از حافظه بعد از ۱۰ دقیقه
+            // این کار از پر شدن حافظه سرور جلوگیری می‌کند
+            setTimeout(() => {
+                sessionMap.delete(sessionHash);
+                console.log(`[CLEANUP] Session ${sessionHash} expired and removed from map.`);
+            }, 10 * 60 * 1000); // 10 minutes
+        }
+        
+        // نکته: درخواست دانلود فایل (/file=...) چون session_hash ندارد، به صورت چرخشی ارسال می‌شود.
+        // اما چون بلافاصله بعد از اتمام کار می‌آید، شانس بسیار بالایی دارد که به اسپیس درست ارسال شود.
+        
+        return targetSpace;
+    },
     {
         https: true,
-        // این تابع دیگر نیازی به تغییر ندارد چون مسیرها ساده هستند
         proxyReqPathResolver: function (req) {
             return req.originalUrl;
         },
         proxyErrorHandler: function (err, res, next) {
             console.error('Proxy error encountered:', err);
-            res.status(502).send('Proxy Error: Could not connect to the AI service.');
-        },
-        // این بخش برای خواندن req.body در درخواست POST ضروری است
-        parseReqBody: true
+            res.status(500).send('An error occurred while connecting to the AI service. Please try again later.');
+        }
     }
 ));
 
-// برای هر مسیر دیگری، فایل اصلی برنامه را نمایش بده
+// Fallback برای هر روت دیگر - فایل index.html را سرو کن
 app.get('*', (req, res) => {
     res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
 
-// اجرای سرور
+// استارت سرور
 app.listen(PORT, () => {
-    console.log(`Server-side Load Balancer listening on port ${PORT}`);
-    console.log('Distributing load across:', HF_TARGETS);
+    console.log(`Proxy server with Round-Robin & Sticky Sessions listening on port ${PORT}`);
+    console.log(`Distributing load across: ${HF_SPACES.join(', ')}`);
 });
