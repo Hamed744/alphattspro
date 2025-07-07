@@ -297,41 +297,49 @@
 
     <script>
     document.addEventListener('DOMContentLoaded', () => {
-        // --- IMPORTANT: API URLs now point to the proxy service (relative paths) ---
-        // The proxy server on Render.com will forward these requests to Hugging Face
-        const JOIN_QUEUE_URL = `/gradio_api/queue/join`;
-        const GET_DATA_URL_BASE = `/gradio_api/queue/data`;
-        const FILE_URL_BASE = `/gradio_api/file=`; // The proxy correctly handles this query parameter
+        // --- START: NEW ROTATION LOGIC ---
+        // کلیدهای ساده که در سرور پروکسی به آدرس های کامل مپ می شوند
+        const TARGET_KEYS = ['space1', 'space2', 'space3'];
+        let currentTargetIndex = 0;
 
-        const FN_INDEX = 1; // This remains the same for the Hugging Face API call
+        // این تابع سرور بعدی را به صورت چرخشی انتخاب می کند
+        const getNextTargetKey = () => {
+            const key = TARGET_KEYS[currentTargetIndex];
+            currentTargetIndex = (currentTargetIndex + 1) % TARGET_KEYS.length;
+            console.log(`Using target server: ${key}`); // برای دیباگ در کنسول
+            return key;
+        };
+        // --- END: NEW ROTATION LOGIC ---
 
-        // UPDATED SPEAKERS ARRAY WITH NEW NAMES, GENDERS, AND IMAGE URLs
+        const FN_INDEX = 1; // این ثابت می ماند
+
+        // UPDATED SPEAKERS ARRAY
         const speakers = [
             { id: "Charon", name: "شهاب (مرد)", desc: "صدایی قدرتمند و رسا", imgUrl: "https://uploadkon.ir/uploads/a18705_25IMG-۲۰۲۵۰۷۰۵-۱۱۰۵۴۹.jpg" },
             { id: "Zephyr", name: "آوا (زن)", desc: "لطیف و دلنشین", imgUrl: "https://uploadkon.ir/uploads/029605_25IMG-۲۰۲۵۰۷۰۵-۱۱۱۲۵۲.jpg" },
             { id: "Achird", name: "نوید (مرد)", desc: "جوان و پرانرژی", imgUrl: "https://uploadkon.ir/uploads/697e05_25IMG-۲۰۲۵۰۶۰۹-۰۶۴۶۳۷.jpg" },
-            { id: "Zubenelgenubi", name: "آرمان (مرد)", desc: "گرم و صمیمی", imgUrl: "https://uploadkon.ir/uploads/a8a705_25IMG-۲۰۲۵۰۷۰۵-۱۱۱۶۲۹.jpg" }, // Changed to male
-            { id: "Vindemiatrix", name: "مهسا (زن)", desc: "باوقار و رسمی", imgUrl: "https://uploadkon.ir/uploads/d74d05_25IMG-۲۰۲۵۰۷۰۵-۱۱۱۸۳۸.jpg" }, // Changed to female
-            { id: "Sadachbia", name: "سامان (مرد)", desc: "شاداب و پویا", imgUrl: "https://uploadkon.ir/uploads/580205_25IMG-۲۰۲۵۰۷۰۵-۱۱۳۳۳۰.jpg" }, // Changed to male
+            { id: "Zubenelgenubi", name: "آرمان (مرد)", desc: "گرم و صمیمی", imgUrl: "https://uploadkon.ir/uploads/a8a705_25IMG-۲۰۲۵۰۷۰۵-۱۱۱۶۲۹.jpg" },
+            { id: "Vindemiatrix", name: "مهسا (زن)", desc: "باوقار و رسمی", imgUrl: "https://uploadkon.ir/uploads/d74d05_25IMG-۲۰۲۵۰۷۰۵-۱۱۱۸۳۸.jpg" },
+            { id: "Sadachbia", name: "سامان (مرد)", desc: "شاداب و پویا", imgUrl: "https://uploadkon.ir/uploads/580205_25IMG-۲۰۲۵۰۷۰۵-۱۱۳۳۳۰.jpg" },
             { id: "Sadaltager", name: "آرش (مرد)", desc: "مطمئن و تاثیرگذار", imgUrl: "https://uploadkon.ir/uploads/c4db05_25IMG-۲۰۲۵۰۷۰۵-۱۱۳۵۰۰.jpg" },
             { id: "Sulafat", name: "شبنم (زن)", desc: "آرام و متین", imgUrl: "https://uploadkon.ir/uploads/995005_25IMG-۲۰۲۵۰۷۰۵-۱۱۳۶۱۱.jpg" },
-            { id: "Laomedeia", name: "سحر (زن)", desc: "دوستانه و گیرا", imgUrl: "https://uploadkon.ir/uploads/660705_25IMG-۲۰۲۵۰۷۰۵-۱۱۳۷۵۴.jpg" }, // Changed to female
+            { id: "Laomedeia", name: "سحر (زن)", desc: "دوستانه و گیرا", imgUrl: "https://uploadkon.ir/uploads/660705_25IMG-۲۰۲۵۰۷۰۵-۱۱۳۷۵۴.jpg" },
             { id: "Achernar", name: "مریم (زن)", desc: "حرفه‌ای و واضح", imgUrl: "https://uploadkon.ir/uploads/4c2905_25IMG-۲۰۲۵۰۷۰۵-۱۱۴۰۳۶.jpg" },
             { id: "Alnilam", name: "بهرام (مرد)", desc: "حماسی و نافذ", imgUrl: "https://uploadkon.ir/uploads/f0c205_25IMG-۲۰۲۵۰۷۰۵-۱۱۴۲۲۰.jpg" },
-            { id: "Schedar", name: "نیکان (مرد)", desc: "مهربان و شیرین", imgUrl: "https://uploadkon.ir/uploads/d37a05_25IMG-۲۰۲۵۰۷۰۵-۱۱۴۳۲۵.jpg" }, // Changed to male
-            { id: "Gacrux", name: "فرناز (زن)", desc: "پخته و قابل اعتماد", imgUrl: "https://uploadkon.ir/uploads/cff705_25IMG-%DB%B2%DB%B0%DB%B2%DB%B5%DB%B0%DB%B7%DB%B0%DB%B5-%DB%B1%DB%B1%DB%B4%DB%B6%DB%B0%DB%B5.jpg" }, // Changed to female
+            { id: "Schedar", name: "نیکان (مرد)", desc: "مهربان و شیرین", imgUrl: "https://uploadkon.ir/uploads/d37a05_25IMG-۲۰۲۵۰۷۰۵-۱۱۴۳۲۵.jpg" },
+            { id: "Gacrux", name: "فرناز (زن)", desc: "پخته و قابل اعتماد", imgUrl: "https://uploadkon.ir/uploads/cff705_25IMG-%DB%B2%DB%B0%DB%B2%DB%B5%DB%B0%DB%B7%DB%B0%DB%B5-%DB%B1%DB%B1%DB%B4%DB%B6%DB%B0%DB%B5.jpg" },
             { id: "Pulcherrima", name: "سارا (زن)", desc: "جذاب و مدرن", imgUrl: "https://uploadkon.ir/uploads/acb105_25IMG-۲۰۲۵۰۷۰۵-۱۱۴۷۴۳.jpg" },
             { id: "Umbriel", name: "مانی (مرد)", desc: "خلاق و متفاوت", imgUrl: "https://uploadkon.ir/uploads/68b505_25IMG-۲۰۲۵۰۷۰۵-۱۱۴۹۱۴.jpg" },
-            { id: "Algieba", name: "آرتین (مرد)", desc: "با اصالت و شیک", imgUrl: "https://uploadkon.ir/uploads/571005_25IMG-۲۰۲۵۰۷۰۵-۱۱۵۰۳۹.jpg" }, // Changed to male
+            { id: "Algieba", name: "آرتین (مرد)", desc: "با اصالت و شیک", imgUrl: "https://uploadkon.ir/uploads/571005_25IMG-۲۰۲۵۰۷۰۵-۱۱۵۰۳۹.jpg" },
             { id: "Despina", name: "دلنواز (زن)", desc: "هنری و احساسی", imgUrl: "https://uploadkon.ir/uploads/5d7805_25IMG-۲۰۲۵۰۷۰۵-۱۱۵۲۲۲.jpg" },
-            { id: "Erinome", name: "روژان (زن)", desc: "شفاف و گویا", imgUrl: "https://uploadkon.ir/uploads/aa8805_25IMG-۲۰۲۵۰۷۰۵-۱۱۵۳۴۹.jpg" }, // Changed to female
+            { id: "Erinome", name: "روژان (زن)", desc: "شفاف و گویا", imgUrl: "https://uploadkon.ir/uploads/aa8805_25IMG-۲۰۲۵۰۷۰۵-۱۱۵۳۴۹.jpg" },
             { id: "Algenib", name: "امید (مرد)", desc: "انگیزه بخش و مثبت", imgUrl: "https://uploadkon.ir/uploads/a63c05_25IMG-۲۰۲۵۰۷۰۵-۱۱۵۹۲۱.jpg" },
             { id: "Orus", name: "بردیا (مرد)", desc: "ورزشی و پرهیجان", imgUrl: "https://uploadkon.ir/uploads/8bc405_25IMG-۲۰۲۵۰۷۰۵-۱۲۱۴۳۳.jpg" },
             { id: "Aoede", name: "ترانه (زن)", desc: "موزیکال و خوش‌آهنگ", imgUrl: "https://uploadkon.ir/uploads/9cb405_25IMG-۲۰۲۵۰۷۰۵-۱۲۱۸۵۰.jpg" },
-            { id: "Callirrhoe", name: "نیکو (زن)", desc: "روایتگر و قصه‌گو", imgUrl: "https://uploadkon.ir/uploads/ee5f05_25IMG-۲۰۲۵۰۷۰۵-۱۲۲۰۴۷.jpg" }, // Changed to female
+            { id: "Callirrhoe", name: "نیکو (زن)", desc: "روایتگر و قصه‌گو", imgUrl: "https://uploadkon.ir/uploads/ee5f05_25IMG-۲۰۲۵۰۷۰۵-۱۲۲۰۴۷.jpg" },
             { id: "Autonoe", name: "هستی (زن)", desc: "طبیعی و خودمانی", imgUrl: "https://uploadkon.ir/uploads/9b0505_25IMG-۲۰۲۵۰۷۰۵-۱۲۲۲۲۲.jpg" },
             { id: "Enceladus", name: "کامیار (مرد)", desc: "مصمم و جدی", imgUrl: "https://uploadkon.ir/uploads/127805_25IMG-۲۰۲۵۰۷۰۵-۱۲۲۴۱۴.jpg" },
-            { id: "Iapetus", name: "کیانوش (مرد)", desc: "درخشان و گیرا", imgUrl: "https://uploadkon.ir/uploads/c98b05_25IMG-۲۰۲۵۰۷۰۵-۱۲۲۶۰۵.jpg" }, // Changed to male
+            { id: "Iapetus", name: "کیانوش (مرد)", desc: "درخشان و گیرا", imgUrl: "https://uploadkon.ir/uploads/c98b05_25IMG-۲۰۲۵۰۷۰۵-۱۲۲۶۰۵.jpg" },
             { id: "Puck", name: "پویا (مرد)", desc: "بازیگوش و سرزنده", imgUrl: "https://uploadkon.ir/uploads/ca3605_25IMG-۲۰۲۵۰۷۰۵-۱۲۲۸۳۹.jpg" },
             { id: "Kore", name: "مهتاب (زن)", desc: "نجواگر و آرامش‌بخش", imgUrl: "https://uploadkon.ir/uploads/b66605_25IMG-۲۰۲۵۰۷۰۵-۱۲۳۰۳۵.jpg" },
             { id: "Fenrir", name: "سام (مرد)", desc: "جسور و بی‌باک", imgUrl: "https://uploadkon.ir/uploads/03c005_25IMG-۲۰۲۵۰۷۰۵-۱۲۳۴۱۳.jpg" },
@@ -357,7 +365,7 @@
         // --- Modal Management ---
         const showModal = (modalElement) => { modalElement.classList.add('visible'); setTimeout(() => modalElement.querySelector('button')?.focus(), 50); }; const hideModal = (modalElement) => modalElement.classList.remove('visible'); changeSpeakerBtn.addEventListener('click', () => { createSpeakerCardsInModal(); showModal(speakerModal); }); selectedSpeakerCard.addEventListener('click', () => { createSpeakerCardsInModal(); showModal(speakerModal); }); tempInfoIcon.addEventListener('click', () => showModal(infoModal)); document.querySelectorAll('.modal-overlay').forEach(o => o.addEventListener('click', (e) => (e.target === o) && hideModal(o))); document.querySelectorAll('.close-modal-btn').forEach(b => b.addEventListener('click', () => hideModal(document.getElementById(b.dataset.modalId)))); document.addEventListener('keydown', (e) => (e.key === 'Escape') && document.querySelectorAll('.modal-overlay.visible').forEach(hideModal)); tempSlider.addEventListener('input', () => { tempValueSpan.textContent = tempSlider.value; });
 
-        // --- Original Audio Player Logic (with Waveform Fix) ---
+        // --- Audio Player Logic (with Waveform Fix) ---
         const formatTime = (seconds) => { if (isNaN(seconds) || seconds < 0) return '0:00'; const minutes = Math.floor(seconds / 60); const remainingSeconds = Math.floor(seconds % 60); return `${minutes}:${remainingSeconds < 10 ? '0' : ''}${remainingSeconds}`; };
         
         function drawWaveform(progressRatio = 0) {
@@ -369,7 +377,7 @@
             const width = audioWaveformCanvas.offsetWidth;
             const height = audioWaveformCanvas.offsetHeight;
             
-            if (width === 0 || height === 0) return; // Extra safety check: Don't draw if canvas has no dimensions
+            if (width === 0 || height === 0) return;
 
             waveformCtx.clearRect(0, 0, width, height);
 
@@ -380,7 +388,6 @@
             const activeColor = getComputedStyle(document.documentElement).getPropertyValue('--waveform-color-active').trim();
             const inactiveColor = getComputedStyle(document.documentElement).getPropertyValue('--waveform-color-inactive').trim();
 
-            // 1. Draw the entire waveform with the inactive color (as the base)
             waveformCtx.fillStyle = inactiveColor;
             for (let i = 0; i < numBars; i++) {
                 const peak = audioPeaks[i] || 0;
@@ -390,25 +397,18 @@
                 waveformCtx.fillRect(x, y, barWidth, barHeight);
             }
 
-            // 2. Create a linear gradient for the active part
-            const activeFillEnd = progressRatio * width; // The absolute pixel position of the playback head
-            const gradientFadeWidth = 80; // The width of the smooth transition zone in pixels
-            const gradientSolidStart = Math.max(0, activeFillEnd - gradientFadeWidth); // Where active color is fully solid
+            const activeFillEnd = progressRatio * width;
+            const gradientFadeWidth = 80;
+            const gradientSolidStart = Math.max(0, activeFillEnd - gradientFadeWidth);
 
             const activeGradient = waveformCtx.createLinearGradient(0, 0, width, 0);
             
-            // Solid active color from left to gradientSolidStart
             activeGradient.addColorStop(0, activeColor);
             activeGradient.addColorStop(gradientSolidStart / width, activeColor);
-
-            // Transition from active color to inactive color, ending at activeFillEnd
             activeGradient.addColorStop(activeFillEnd / width, inactiveColor);
 
-            // 3. Apply this gradient as the fillStyle
             waveformCtx.fillStyle = activeGradient;
 
-            // 4. Draw the waveform again on top. The gradient will automatically apply
-            // to each bar based on its X position on the canvas, creating a smooth sweep effect.
             for (let i = 0; i < numBars; i++) {
                 const peak = audioPeaks[i] || 0;
                 const barHeight = peak * height;
@@ -426,7 +426,6 @@
             audioCurrentTimeSpan.textContent = formatTime(currentTime);
             if (isFinite(duration) && duration > 0) {
                 audioTotalTimeSpan.textContent = formatTime(duration);
-                // Schedule waveform redraw on the next animation frame
                 requestAnimationFrame(() => drawWaveform(currentTime / duration));
             } else {
                 audioTotalTimeSpan.textContent = '0:00';
@@ -436,50 +435,44 @@
         
         async function processAudioForWaveform(audioBuffer) {
             if (!audioBuffer) { audioPeaks = []; return; }
-
             const width = audioWaveformCanvas.offsetWidth;
             const height = audioWaveformCanvas.offsetHeight;
-
-            // IMPORTANT: If canvas not yet rendered/sized, retry on next frame
             if (width === 0 || height === 0) {
-                // console.warn("Canvas dimensions not ready, retrying waveform processing..."); // Uncomment for debugging
                 requestAnimationFrame(() => processAudioForWaveform(audioBuffer));
                 return;
             }
-
             const channelData = audioBuffer.getChannelData(0);
-            const barWidth = 3;
-            const barGap = 2;
-            const totalBarAndGap = barWidth + barGap;
-            const numBars = Math.floor(width / totalBarAndGap); // Use the correct, non-zero width
+            const barWidth = 3; const barGap = 2; const totalBarAndGap = barWidth + barGap;
+            const numBars = Math.floor(width / totalBarAndGap);
             const samplesPerBar = Math.floor(channelData.length / numBars);
             const peaks = [];
-
             for (let i = 0; i < numBars; i++) {
                 let maxPeak = 0;
                 const start = i * samplesPerBar;
-                // Ensure we don't read beyond the array bounds
                 const end = Math.min(start + samplesPerBar, channelData.length);
                 for (let j = start; j < end; j++) {
                     const value = Math.abs(channelData[j]);
                     if (value > maxPeak) maxPeak = value;
                 }
-                peaks.push(Math.min(1, Math.max(0, maxPeak * 1.5))); // Amplify for better visuals
+                peaks.push(Math.min(1, Math.max(0, maxPeak * 1.5)));
             }
             audioPeaks = peaks;
-            // Draw initial waveform on the next available frame
             requestAnimationFrame(() => drawWaveform(0));
         }
         
-        playPauseBtn.addEventListener('click', () => hiddenAudioPlayer.paused ? hiddenAudioPlayer.play() : hiddenAudioPlayer.pause()); skipBackwardBtn.addEventListener('click', () => hiddenAudioPlayer.currentTime = Math.max(0, hiddenAudioPlayer.currentTime - 5)); skipForwardBtn.addEventListener('click', () => hiddenAudioPlayer.currentTime = Math.min(hiddenAudioPlayer.duration, hiddenAudioPlayer.currentTime + 5));
+        playPauseBtn.addEventListener('click', () => hiddenAudioPlayer.paused ? hiddenAudioPlayer.play() : hiddenAudioPlayer.pause());
+        skipBackwardBtn.addEventListener('click', () => hiddenAudioPlayer.currentTime = Math.max(0, hiddenAudioPlayer.currentTime - 5));
+        skipForwardBtn.addEventListener('click', () => hiddenAudioPlayer.currentTime = Math.min(hiddenAudioPlayer.duration, hiddenAudioPlayer.currentTime + 5));
         volumeBtn.addEventListener('click', () => { hiddenAudioPlayer.muted = !hiddenAudioPlayer.muted; volumeHighIcon.style.display = hiddenAudioPlayer.muted ? 'none' : 'block'; volumeMuteIcon.style.display = hiddenAudioPlayer.muted ? 'block' : 'none'; });
         speedBtn.addEventListener('click', () => { currentPlaybackSpeedIndex = (currentPlaybackSpeedIndex + 1) % playbackSpeeds.length; const newSpeed = playbackSpeeds[currentPlaybackSpeedIndex]; hiddenAudioPlayer.playbackRate = newSpeed; speedBtn.textContent = `${newSpeed}x`; });
-        hiddenAudioPlayer.addEventListener('timeupdate', updatePlayerUI); hiddenAudioPlayer.addEventListener('play', updatePlayerUI); hiddenAudioPlayer.addEventListener('pause', updatePlayerUI); hiddenAudioPlayer.addEventListener('ended', () => { hiddenAudioPlayer.currentTime = 0; updatePlayerUI(); });
+        hiddenAudioPlayer.addEventListener('timeupdate', updatePlayerUI);
+        hiddenAudioPlayer.addEventListener('play', updatePlayerUI);
+        hiddenAudioPlayer.addEventListener('pause', updatePlayerUI);
+        hiddenAudioPlayer.addEventListener('ended', () => { hiddenAudioPlayer.currentTime = 0; updatePlayerUI(); });
         
-        // IMPORTANT: Modified loadedmetadata listener for robust waveform display
         hiddenAudioPlayer.addEventListener('loadedmetadata', async () => {
             if (!audioContext) audioContext = new (window.AudioContext || window.webkitAudioContext)();
-            if (!hiddenAudioPlayer.src) { // If src is empty, clear waveform
+            if (!hiddenAudioPlayer.src) {
                 audioPeaks = [];
                 requestAnimationFrame(() => drawWaveform(0));
                 updatePlayerUI();
@@ -489,16 +482,17 @@
                 const response = await fetch(hiddenAudioPlayer.src);
                 const arrayBuffer = await response.arrayBuffer();
                 const decodedBuffer = await audioContext.decodeAudioData(arrayBuffer);
-                await processAudioForWaveform(decodedBuffer); // This now includes the retry logic
+                await processAudioForWaveform(decodedBuffer);
             } catch (e) {
                 console.error("Error decoding audio for waveform:", e);
                 audioPeaks = [];
-                requestAnimationFrame(() => drawWaveform(0)); // Ensure canvas is cleared on error
+                requestAnimationFrame(() => drawWaveform(0));
             }
             updatePlayerUI();
         });
         
-        let resizeTimeout; window.addEventListener('resize', () => { clearTimeout(resizeTimeout); resizeTimeout = setTimeout(() => { if (outputSection.classList.contains('has-content') && hiddenAudioPlayer.src) { requestAnimationFrame(() => drawWaveform(hiddenAudioPlayer.currentTime / hiddenAudioPlayer.duration)); } }, 250); });
+        let resizeTimeout;
+        window.addEventListener('resize', () => { clearTimeout(resizeTimeout); resizeTimeout = setTimeout(() => { if (outputSection.classList.contains('has-content') && hiddenAudioPlayer.src) { requestAnimationFrame(() => drawWaveform(hiddenAudioPlayer.currentTime / hiddenAudioPlayer.duration)); } }, 250); });
 
         // --- State Management Functions ---
         const showLoadingState = () => { audioPlayerContent.style.display = 'none'; outputSection.classList.remove('has-content'); statusMessage.style.display = 'none'; loadingAnimationWrapper.style.display = 'flex'; generateBtn.disabled = true; generateBtn.innerHTML = ` <svg aria-hidden="true" role="status" fill="currentColor" viewBox="0 0 100 101" style="animation: spin 1s linear infinite;"> <path d="M100 50.5908C100 78.2051 77.6142 100.591 50 100.591C22.3858 100.591 0 78.2051 0 50.5908C0 22.9766 22.3858 0.59082 50 0.59082C77.6142 0.59082 100 22.9766 100 50.5908ZM9.08144 50.5908C9.08144 73.1895 27.4013 91.5094 50 91.5094C72.5987 91.5094 90.9186 73.1895 90.9186 50.5908C90.9186 27.9921 72.5987 9.67226 50 9.67226C27.4013 9.67226 9.08144 27.9921 9.08144 50.5908Z" fill="#E5E7EB"/> <path d="M93.9676 39.0409C96.393 38.4038 97.8624 35.9116 97.0079 33.5539C95.2932 28.8227 92.871 24.3692 89.8167 20.348C85.8452 15.1192 80.8826 10.7238 75.2124 7.41289C69.5422 4.10194 63.2754 1.94025 56.7698 1.05124C51.7666 0.367541 46.6976 0.446843 41.7345 1.27873C39.2613 1.69328 37.813 4.19778 38.4501 6.62326C39.0873 9.04874 41.5694 10.4717 44.0505 10.1071C47.8511 9.54855 51.7191 9.52689 55.5402 10.0492C60.8642 10.7766 65.9928 12.5457 70.6331 15.2552C75.2735 17.9648 79.3347 21.5619 82.5849 25.841C84.9175 28.9121 86.7997 32.2913 88.1811 35.8758C89.083 38.2158 91.5421 39.6781 93.9676 39.0409Z" fill="currentColor"/> </svg> در حال پردازش... `; };
@@ -511,61 +505,105 @@
                 statusMessage.textContent = message || 'خطایی رخ داد. لطفاً دوباره تلاش کنید.';
                 statusMessage.style.display = 'block'; audioPlayerContent.style.display = 'none';
                 outputSection.classList.remove('has-content');
-                hiddenAudioPlayer.src = ''; // Clear src on error
-                audioPeaks = []; requestAnimationFrame(() => drawWaveform(0)); // Clear waveform
+                hiddenAudioPlayer.src = '';
+                audioPeaks = []; requestAnimationFrame(() => drawWaveform(0));
             }
             generateBtn.disabled = false; generateBtn.innerHTML = '✨ خلق صدا با آلفا';
         };
 
-        // --- API Call ---
+        // --- API Call (MODIFIED FOR ROTATION) ---
         async function generateAudio(event) {
-            event.preventDefault(); showLoadingState();
+            event.preventDefault();
+            showLoadingState();
+
+            // 1. Get the next server key for THIS ENTIRE JOB
+            const targetKey = getNextTargetKey();
+
+            // 2. Define API endpoints dynamically based on the selected key
+            const JOIN_QUEUE_URL = `/${targetKey}/gradio_api/queue/join`;
+            const GET_DATA_URL_BASE = `/${targetKey}/gradio_api/queue/data`;
+            const FILE_URL_BASE = `/${targetKey}/gradio_api/file=`;
+
             const text = textInput.value;
-            if (!text.trim()) { showResultState(false, 'خطا: متن ورودی نمی‌تواند خالی باشد.'); return; }
-            if (text.length > MAX_CHARS) { showResultState(false, `خطا: طول متن بیش از ${MAX_CHARS.toLocaleString('fa-IR')} نویسه است.`); return; }
-            const payload = { fn_index: FN_INDEX, data: [false, null, text, promptInput.value, selectedSpeakerIdStorage.value, parseFloat(tempSlider.value)], event_data: null, session_hash: Math.random().toString(36).substring(2) };
+            if (!text.trim()) {
+                showResultState(false, 'خطا: متن ورودی نمی‌تواند خالی باشد.');
+                return;
+            }
+            if (text.length > MAX_CHARS) {
+                showResultState(false, `خطا: طول متن بیش از ${MAX_CHARS.toLocaleString('fa-IR')} نویسه است.`);
+                return;
+            }
+            const payload = {
+                fn_index: FN_INDEX,
+                data: [false, null, text, promptInput.value, selectedSpeakerIdStorage.value, parseFloat(tempSlider.value)],
+                event_data: null,
+                session_hash: Math.random().toString(36).substring(2)
+            };
             try {
-                const joinQueueResponse = await fetch(JOIN_QUEUE_URL, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
-                if (!joinQueueResponse.ok) { throw new Error(`خطا در برقراری ارتباط با سرویس آلفا (کد: ${joinQueueResponse.status}).`); }
-                let finalFilePath = null; const startTime = Date.now(); const timeoutDuration = 90000;
+                const joinQueueResponse = await fetch(JOIN_QUEUE_URL, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify(payload)
+                });
+                if (!joinQueueResponse.ok) {
+                    throw new Error(`خطا در برقراری ارتباط با سرویس آلفا (کد: ${joinQueueResponse.status}).`);
+                }
+                let finalFilePath = null;
+                const startTime = Date.now();
+                const timeoutDuration = 90000;
                 while (Date.now() - startTime < timeoutDuration) {
                     const dataResponse = await fetch(`${GET_DATA_URL_BASE}?session_hash=${payload.session_hash}`);
-                    if (!dataResponse.ok) { throw new Error(`خطا در دریافت داده از سرویس (کد: ${dataResponse.status})`); }
-                    const responseText = await dataResponse.text(); const lines = responseText.trim().split('\n');
+                    if (!dataResponse.ok) {
+                        throw new Error(`خطا در دریافت داده از سرویس (کد: ${dataResponse.status})`);
+                    }
+                    const responseText = await dataResponse.text();
+                    const lines = responseText.trim().split('\n');
                     for (const line of lines) {
                         if (!line.startsWith('data:')) continue;
                         try {
                             const data = JSON.parse(line.substring(5));
                             if (data.msg === 'process_completed') {
-                                if (data.success && data.output?.data?.[0] && (data.output.data[0].name || data.output.data[0].path)) { finalFilePath = data.output.data[0].name || data.output.data[0].path; } else { throw new Error(data.output?.error || 'خطای ناشناخته در پردازش سرور.'); }
+                                if (data.success && data.output?.data?.[0] && (data.output.data[0].name || data.output.data[0].path)) {
+                                    finalFilePath = data.output.data[0].name || data.output.data[0].path;
+                                } else {
+                                    throw new Error(data.output?.error || 'خطای ناشناخته در پردازش سرور.');
+                                }
                                 break;
-                            } else if (data.msg === 'queue_full') { throw new Error('صف پردازش پر است. لطفا کمی بعد تلاش کنید.'); }
-                        } catch (e) { console.warn("Error parsing JSON from stream:", e, "Line:", line); }
+                            } else if (data.msg === 'queue_full') {
+                                throw new Error('صف پردازش پر است. لطفا کمی بعد تلاش کنید.');
+                            }
+                        } catch (e) {
+                            console.warn("Error parsing JSON from stream:", e, "Line:", line);
+                        }
                     }
                     if (finalFilePath) break;
                     await new Promise(resolve => setTimeout(resolve, 1000));
                 }
                 if (finalFilePath) {
-                    // Force reload for robust waveform generation
-                    hiddenAudioPlayer.src = ''; // Clear current source
-                    hiddenAudioPlayer.load(); // Request browser to load it
-                    hiddenAudioPlayer.src = `${FILE_URL_BASE}${finalFilePath}`; // Set new source
-                    // loadedmetadata event listener will now handle processing and drawing
+                    hiddenAudioPlayer.src = '';
+                    hiddenAudioPlayer.load();
+                    // Use the dynamic URL base for the audio file too!
+                    hiddenAudioPlayer.src = `${FILE_URL_BASE}${finalFilePath}`;
                     showResultState(true);
                 } else if (Date.now() - startTime >= timeoutDuration) {
                     throw new Error('پردازش بیش از حد طول کشید و متوقف شد.');
                 } else {
                     throw new Error('فایل صوتی از سرور دریافت نشد یا پردازش ناموفق بود.');
                 }
-            } catch (error) { console.error('خطا در فرآیند تولید صدا:', error); showResultState(false, error.message); }
+            } catch (error) {
+                console.error('خطا در فرآیند تولید صدا:', error);
+                showResultState(false, error.message);
+            }
         }
 
         // --- Initial Setup ---
         const defaultSpeakerId = speakers.length > 0 ? speakers[0].id : "Charon";
         updateSelectedSpeakerDisplay(selectedSpeakerIdStorage.value || defaultSpeakerId);
         form.addEventListener('submit', generateAudio);
-        statusMessage.style.display = 'block'; loadingAnimationWrapper.style.display = 'none';
-        audioPlayerContent.style.display = 'none'; outputSection.classList.remove('has-content');
+        statusMessage.style.display = 'block';
+        loadingAnimationWrapper.style.display = 'none';
+        audioPlayerContent.style.display = 'none';
+        outputSection.classList.remove('has-content');
     });
     </script>
 </body>
