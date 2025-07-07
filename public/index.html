@@ -549,8 +549,7 @@
                     // Force reload for robust waveform generation
                     hiddenAudioPlayer.src = ''; // Clear current source
                     hiddenAudioPlayer.load(); // Request browser to load it
-                    // *** تنها تغییر در این فایل اینجاست ***
-                    hiddenAudioPlayer.src = `${FILE_URL_BASE}${encodeURIComponent(finalFilePath)}`; // Set new source with encoded path
+                    hiddenAudioPlayer.src = `${FILE_URL_BASE}${finalFilePath}`; // Set new source
                     // loadedmetadata event listener will now handle processing and drawing
                     showResultState(true);
                 } else if (Date.now() - startTime >= timeoutDuration) {
