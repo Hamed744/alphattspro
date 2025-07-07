@@ -1,14 +1,311 @@
-<script>
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Alpha TTS - نسل جدید تبدیل متن به صدا</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Vazirmatn:wght@300;400;500;600;700;800;900&display=swap');
+
+        :root {
+            /* --- Light Theme Palette --- */
+            --app-font: 'Vazirmatn', sans-serif;
+            --app-bg: #F8F9FC;
+            --panel-bg: #FFFFFF;
+            --panel-border: #EAEFF7;
+            --input-bg: #F6F8FB;
+            --input-border: #E1E7EF;
+            --text-primary: #1A202C;
+            --text-secondary: #626F86;
+            --text-tertiary: #8A94A6;
+            --accent-primary: #4A6CFA;
+            --accent-primary-hover: #3553D6;
+            --accent-primary-glow: rgba(74, 108, 250, 0.25);
+            --accent-secondary: #0FD4A8;
+            --accent-secondary-hover: #0DA986;
+            --accent-secondary-glow: rgba(15, 212, 168, 0.2);
+            --waveform-color-active: var(--accent-primary);
+            --waveform-color-inactive: #D0D9E6;
+            --waveform-dashed-line-color: #E0E4E9;
+            --shadow-sm: 0 1px 2px 0 rgba(26, 32, 44, 0.03);
+            --shadow-md: 0 4px 6px -1px rgba(26, 32, 44, 0.05), 0 2px 4px -2px rgba(26, 32, 44, 0.04);
+            --shadow-lg: 0 10px 15px -3px rgba(26, 32, 44, 0.06), 0 4px 6px -4px rgba(26, 32, 44, 0.05);
+            --shadow-xl: 0 20px 25px -5px rgba(26, 32, 44, 0.07), 0 8px 10px -6px rgba(26, 32, 44, 0.05);
+            
+            --radius-card: 24px;
+            --radius-btn: 14px;
+            --radius-input: 12px;
+            --transition-fast: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+            --transition-smooth: all 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+            --transition-bounce: all 0.4s cubic-bezier(0.68, -0.55, 0.27, 1.55);
+        }
+
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(15px); } to { opacity: 1; transform: translateY(0); } }
+        @keyframes modalZoomIn { from { opacity: 0; transform: scale(0.9) translateY(20px); } to { opacity: 1; transform: scale(1) translateY(0); } }
+        @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+
+        /* --- Original Loading Animation Keyframes --- */
+        @keyframes rotate-loader-orbital { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+        @keyframes orbit-spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+        @keyframes satellite-pulse-1 { from { transform: scale(0.7) translateX(-50%); opacity: 0.6; } to { transform: scale(1.1) translateX(-50%); opacity: 1; } }
+        @keyframes satellite-pulse-2 { from { transform: scale(0.7) translateY(-50%); opacity: 0.6; } to { transform: scale(1.1) translateY(-50%); opacity: 1; } }
+        @keyframes satellite-pulse-3 { from { transform: scale(0.7) translateX(50%); opacity: 0.6; } to { transform: scale(1.1) translateX(50%); opacity: 1; } }
+
+        /* --- Base Styles --- */
+        body {
+            font-family: var(--app-font); direction: rtl; background-color: var(--app-bg);
+            color: var(--text-primary); font-size: 16px; line-height: 1.8; margin: 0;
+            padding: 2.5rem 0; min-height: 100vh; -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale; display: flex; justify-content: center;
+            align-items: flex-start; overflow-x: hidden;
+            background-image: radial-gradient(var(--text-tertiary) 0.5px, transparent 0.5px);
+            background-size: 20px 20px; background-position: -10px -10px;
+        }
+        .container { max-width: 820px; width: 92%; margin: 0 auto; }
+        
+        /* --- App Header --- */
+        .app-header { padding: 0.5rem 0 2.5rem 0; text-align: center; margin-bottom: 1.5rem; animation: fadeIn 0.8s 0.2s ease-out backwards; }
+        .app-header h1 { font-size: 2.5em; font-weight: 900; margin: 0 0 0.8rem 0; background: linear-gradient(90deg, var(--accent-primary), var(--accent-secondary)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; letter-spacing: -1px; }
+        .app-header p { font-size: 1.05em; color: var(--text-secondary); margin-top: 0; opacity: 0.9; font-weight: 400; line-height: 1.7; }
+        
+        /* --- Main Content Panel --- */
+        .main-content { padding: 3rem; background-color: var(--panel-bg); border-radius: var(--radius-card); box-shadow: var(--shadow-xl); border: 1px solid var(--panel-border); animation: fadeIn 0.8s 0.4s ease-out backwards; }
+        .form-group { margin-bottom: 2.2rem; }
+        label { display: block; font-weight: 700; color: var(--text-primary); font-size: 1.1em; margin-bottom: 1rem; }
+        textarea, input[type="text"] { width: 100%; padding: 1rem 1.2rem; border-radius: var(--radius-input); border: 1px solid var(--input-border); background-color: var(--input-bg); color: var(--text-primary); box-shadow: var(--shadow-sm) inset; font-family: var(--app-font); font-size: 1rem; box-sizing: border-box; transition: var(--transition-smooth); }
+        textarea:focus, input[type="text"]:focus { outline: none; border-color: var(--accent-primary); box-shadow: 0 0 0 3px var(--accent-primary-glow), var(--shadow-sm) inset; background-color: var(--panel-bg); }
+        textarea { min-height: 120px; resize: vertical; }
+        .char-counter-wrapper { font-size: 0.85em; color: var(--text-tertiary); text-align: left; margin-top: 0.75rem; padding: 0 0.2rem; }
+        #char-count { font-weight: 600; color: var(--accent-primary); }
+        
+        /* --- Speaker Selection Display --- */
+        #selected-speaker-display { text-align: center; margin-top: 1.5rem; }
+        #selected-speaker-card { display: inline-flex; align-items: center; background: linear-gradient(135deg, var(--input-bg) 0%, var(--panel-bg) 100%); border-radius: 50px; padding: 0.75rem 0.75rem 0.75rem 1.5rem; box-shadow: var(--shadow-md); border: 1px solid var(--panel-border); transition: var(--transition-bounce); cursor: pointer; margin-bottom: 1.5rem; }
+        #selected-speaker-card:hover { transform: translateY(-6px) scale(1.03); box-shadow: var(--shadow-lg); border-color: var(--accent-primary); }
+        #selected-speaker-card img { width: 60px; height: 60px; border-radius: 50%; object-fit: cover; margin-left: 1rem; border: 3px solid var(--accent-secondary); box-shadow: 0 0 15px -3px var(--accent-secondary-glow); transition: var(--transition-smooth); }
+        #selected-speaker-info { text-align: right; }
+        #selected-speaker-info h3 { margin: 0; font-size: 1.25em; font-weight: 800; }
+        #selected-speaker-info p { margin: 2px 0 0; color: var(--text-secondary); font-size: 0.85em; font-weight: 500; }
+        #change-speaker-btn { display: inline-flex; align-items: center; justify-content: center; padding: 12px 24px; border-radius: var(--radius-btn); background: var(--panel-bg); border: 1px solid var(--input-border); color: var(--text-primary); cursor: pointer; font-family: var(--app-font); font-weight: 600; font-size: 1em; transition: var(--transition-smooth); box-shadow: var(--shadow-md); }
+        #change-speaker-btn:hover { background: var(--input-bg); border-color: var(--accent-primary); color: var(--accent-primary); transform: translateY(-3px) scale(1.05); box-shadow: var(--shadow-lg); }
+
+        /* --- Modals --- */
+        .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: rgba(18, 24, 38, 0.6); backdrop-filter: blur(10px) saturate(150%); display: none; align-items: center; justify-content: center; z-index: 1000; opacity: 0; transition: opacity var(--transition-smooth); }
+        .modal-overlay.visible { display: flex; opacity: 1; }
+        .modal-dialog { background: var(--panel-bg); padding: 2.5rem; border-radius: var(--radius-card); width: 90%; box-shadow: var(--shadow-xl); border: 1px solid var(--panel-border); opacity: 0; animation: modalZoomIn 0.4s cubic-bezier(0.4, 0, 0.2, 1) forwards; }
+        .modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem; padding-bottom: 1.5rem; border-bottom: 1px solid var(--panel-border); }
+        .modal-header h2 { margin: 0; font-size: 1.8em; font-weight: 800; color: var(--accent-primary); }
+        .close-modal-btn { background: none; border: none; font-size: 2.5rem; cursor: pointer; color: var(--text-tertiary); transition: var(--transition-smooth); line-height: 1; }
+        .close-modal-btn:hover { color: var(--accent-primary); transform: rotate(90deg) scale(1.1); }
+        #speaker-modal .modal-dialog { max-width: 750px; max-height: 85vh; overflow-y: auto; }
+        #speaker-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap: 1.5rem; }
+        .speaker-card { cursor: pointer; transition: var(--transition-smooth); text-align: center; position: relative; border-radius: var(--radius-card); padding: 0.5rem; }
+        .speaker-card:hover { transform: translateY(-8px); }
+        .speaker-card input[type="radio"] { display: none; }
+        .speaker-card .speaker-visual { border: 3px solid transparent; border-radius: 18px; overflow: hidden; box-shadow: var(--shadow-md); position: relative; background-color: var(--input-bg); transition: var(--transition-bounce); }
+        .speaker-card:hover .speaker-visual { box-shadow: var(--shadow-lg); }
+        .speaker-card img { width: 100%; height: 130px; object-fit: cover; display: block; background-color: #e0e0e0; border-radius: 14px; transition: transform 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94); }
+        .speaker-card:hover img { transform: scale(1.1); }
+        .speaker-card .speaker-name { padding: 0.8rem 0.4rem 0.2rem; font-weight: 600; font-size: 0.95em; color: var(--text-secondary); transition: color 0.2s; }
+        .speaker-card input[type="radio"]:checked + .speaker-visual { border-color: var(--accent-secondary); box-shadow: 0 0 25px -5px var(--accent-secondary-glow); transform: scale(1.05); }
+
+        /* --- Slider --- */
+        .label-with-info { display: flex; align-items: center; gap: 0.5rem; margin-bottom: 1.2rem; }
+        .info-icon { display: inline-flex; align-items: center; justify-content: center; width: 24px; height: 24px; border-radius: 50%; background-color: var(--input-bg); border: 1px solid var(--input-border); color: var(--text-secondary); font-size: 0.9em; font-weight: 700; cursor: pointer; transition: var(--transition-smooth); user-select: none; }
+        .info-icon:hover { background-color: var(--accent-primary); color: white; border-color: var(--accent-primary); transform: scale(1.1); box-shadow: 0 0 10px var(--accent-primary-glow); }
+        .slider-container { display: flex; align-items: center; gap: 1.5rem; }
+        input[type="range"] { flex-grow: 1; -webkit-appearance: none; appearance: none; width: 100%; height: 6px; background: var(--input-border); border-radius: 3px; outline: none; cursor: pointer; }
+        input[type="range"]::-webkit-slider-runnable-track { background: linear-gradient(to right, var(--accent-secondary) 0%, var(--accent-primary) 100%); height: 6px; border-radius: 3px; }
+        input[type="range"]::-webkit-slider-thumb { -webkit-appearance: none; appearance: none; width: 24px; height: 24px; background: #fff; border-radius: 50%; cursor: pointer; border: 4px solid var(--accent-primary); box-shadow: var(--shadow-md); margin-top: -9px; transition: var(--transition-fast); }
+        input[type="range"]:hover::-webkit-slider-thumb { transform: scale(1.15); box-shadow: 0 0 0 8px var(--accent-primary-glow); }
+        #temperature-value { font-weight: 700; background-color: var(--input-bg); padding: 0.5rem 1rem; border-radius: 8px; border: 1px solid var(--input-border); min-width: 45px; text-align: center; color: var(--accent-primary); font-size: 1em; box-shadow: var(--shadow-sm); }
+        
+        /* --- Generate Button --- */
+        #generate-btn { width: 100%; padding: 1.1rem 1.5rem; font-size: 1.25em; font-weight: 800; font-family: var(--app-font); background: linear-gradient(95deg, var(--accent-secondary) 0%, var(--accent-primary) 100%); color: #fff; border: none; border-radius: var(--radius-btn); cursor: pointer; transition: var(--transition-smooth), transform 0.15s ease-out; box-shadow: 0 6px 12px -3px var(--accent-primary-glow), 0 6px 12px -3px var(--accent-secondary-glow); position: relative; overflow: hidden; letter-spacing: 0.5px; }
+        #generate-btn:hover:not(:disabled) { transform: translateY(-5px) scale(1.02); box-shadow: 0 8px 20px -4px var(--accent-primary-glow), 0 8px 20px -4px var(--accent-secondary-glow); }
+        #generate-btn:disabled { background: var(--text-tertiary); cursor: not-allowed; box-shadow: none; color: var(--text-secondary); }
+        #generate-btn svg { display:inline-block; margin-left: 0.5em; width:1.2em; height:1.2em; vertical-align: middle; }
+
+        /* --- Output Section --- */
+        #output-section { margin-top: 3rem; display: flex; align-items: center; justify-content: center; flex-direction: column; min-height: 220px; position: relative; box-sizing: border-box; padding: 2rem; background-color: var(--input-bg); border-radius: var(--radius-card); border: 2px dashed var(--input-border); box-shadow: var(--shadow-sm) inset; transition: var(--transition-smooth); }
+        #output-section.has-content { background-color: var(--panel-bg); border: 1px solid var(--panel-border); box-shadow: var(--shadow-lg); padding: 0; min-height: auto; }
+        #status-message { font-weight: 500; color: var(--text-secondary); text-align: center; font-size: 1.1em; }
+        
+        /* --- Original Loading Animation --- */
+        #loading-animation-wrapper { display: none; flex-direction: column; align-items: center; justify-content: center; gap: 1.8rem; width: 100%; }
+        .orbital-loader { width: 110px; height: 110px; position: relative; animation: rotate-loader-orbital 10s linear infinite; }
+        .orbit { position: absolute; top: 50%; left: 50%; border: 2px dashed rgba(74, 108, 250, 0.35); border-radius: 50%; transform-origin: center center; }
+        .orbit:nth-child(1) { width: 35px; height: 35px; margin: -17.5px 0 0 -17.5px; animation: orbit-spin 2.8s linear infinite reverse; }
+        .orbit:nth-child(2) { width: 65px; height: 65px; margin: -32.5px 0 0 -32.5px; animation: orbit-spin 3.8s linear infinite; }
+        .orbit:nth-child(3) { width: 95px; height: 95px; margin: -47.5px 0 0 -47.5px; animation: orbit-spin 4.8s linear infinite reverse; }
+        .orbit .satellite { position: absolute; width: 10px; height: 10px; border-radius: 50%; background-color: var(--accent-primary); box-shadow: 0 0 8px var(--accent-primary), 0 0 12px var(--accent-secondary); }
+        .orbit:nth-child(1) .satellite { top: -5px; left: 50%; animation: satellite-pulse-1 1.4s ease-in-out infinite alternate; }
+        .orbit:nth-child(2) .satellite { top: 50%; left: -5px; background-color: var(--accent-secondary); animation: satellite-pulse-2 1.4s 0.2s ease-in-out infinite alternate; }
+        .orbit:nth-child(3) .satellite { bottom: -5px; right: 50%; animation: satellite-pulse-3 1.4s 0.4s ease-in-out infinite alternate;}
+        #loading-text { font-size: 1.2em; font-weight: 700; color: var(--text-primary); text-align: center; background: linear-gradient(90deg, var(--accent-primary), var(--accent-secondary)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+
+        /* --- Original Audio Player Styles --- */
+        #audio-player-content { display: none; width: 100%; padding: 1.5rem; box-sizing: border-box; flex-direction: column; gap: 1.2rem; }
+        .audio-waveform-container { display: flex; align-items: center; gap: 1rem; width: 100%; margin-bottom: 1rem; }
+        .audio-time { font-size: 0.9em; color: var(--text-secondary); min-width: 40px; text-align: center; font-variant-numeric: tabular-nums; user-select: none; }
+        .audio-waveform { flex-grow: 1; height: 60px; position: relative; overflow: hidden; display: flex; align-items: center; justify-content: center; margin-bottom: 0.5rem; }
+        #audio-waveform-canvas { display: block; max-width: 100%; height: 100%; }
+        .audio-waveform-dashed-line { position: absolute; top: 50%; left: 0; width: 100%; height: 1px; background-image: linear-gradient(to right, var(--waveform-dashed-line-color) 33%, transparent 0%); background-position: center; background-size: 10px 1px; transform: translateY(-50%); z-index: 1; }
+        .audio-controls-group { display: flex; justify-content: center; align-items: center; gap: 1.5rem; margin-bottom: 1rem; }
+        .audio-skip-btn, .audio-play-pause-btn-large, .audio-volume-btn, .audio-speed-btn { background: none; border: none; cursor: pointer; padding: 8px; transition: transform 0.2s, opacity 0.2s; }
+        .audio-skip-btn, .audio-play-pause-btn-large, .audio-volume-btn { color: var(--text-secondary); }
+        .audio-skip-btn:hover, .audio-play-pause-btn-large:hover, .audio-volume-btn:hover { color: var(--accent-primary); opacity: 0.9; }
+        .audio-skip-btn:active, .audio-play-pause-btn-large:active, .audio-volume-btn:active { transform: scale(0.9); }
+        .audio-skip-btn svg { width: 28px; height: 28px; fill: currentColor; }
+        .audio-play-pause-btn-large { padding: 0; width: 50px; height: 50px; }
+        .audio-play-pause-btn-large svg { width: 38px; height: 38px; fill: currentColor; }
+        .audio-utility-controls { display: flex; align-items: center; justify-content: space-between; width: 100%; }
+        .audio-volume-btn svg { width: 24px; height: 24px; fill: currentColor; }
+        .audio-speed-btn { font-family: var(--app-font); font-size: 0.9em; font-weight: 600; background-color: var(--panel-bg); border: 1px solid var(--panel-border); border-radius: 8px; min-width: 40px; text-align: center; color: var(--text-primary); box-shadow: var(--shadow-sm); }
+        .audio-speed-btn:hover { background-color: var(--input-bg); }
+        #hidden-audio-player { display: none !important; }
+
+        @media (max-width: 600px) {
+            body { padding: 1.5rem 0; }
+            .main-content { padding: 1.5rem; }
+            .app-header h1 { font-size: 2em; }
+            #selected-speaker-card { flex-direction: column; padding: 1rem; border-radius: var(--radius-card); }
+            #selected-speaker-card img { margin-left: 0; margin-bottom: 1rem; }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <header class="app-header">
+            <h1>مولد صدای هوشمند آلفا</h1>
+            <p>کیفیت استودیو، قدرت هوش مصنوعی. صدایی فراتر از انتظار خلق کنید.</p>
+        </header>
+
+        <main class="main-content">
+            <form id="tts-form">
+                <div class="form-group">
+                    <label for="text-input">📝 متن اصلی</label>
+                    <textarea id="text-input" rows="5" placeholder="متن خود را برای تبدیل به گفتار اینجا وارد کنید..."></textarea>
+                    <div class="char-counter-wrapper">
+                        <span id="char-count">0</span> / <span id="char-max">50000</span> نویسه
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label for="prompt-input">🗣️ توصیف لحن و احساس (اختیاری)</label>
+                    <input type="text" id="prompt-input" placeholder="مثال: با لحنی آرام و قصه‌گو متن بخون">
+                </div>
+
+                <div class="form-group">
+                    <label>🎤 گوینده منتخب</label>
+                    <div id="selected-speaker-display">
+                        <div id="selected-speaker-card" title="برای تغییر گوینده کلیک کنید">
+                            <img id="selected-speaker-img" src="" alt="عکس گوینده">
+                            <div id="selected-speaker-info">
+                                <h3 id="selected-speaker-name"></h3>
+                                <p id="selected-speaker-desc"></p>
+                            </div>
+                        </div>
+                        <button type="button" id="change-speaker-btn">تغییر گوینده</button>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <div class="label-with-info">
+                        <label for="temperature-slider">🌡️ خلاقیت و پویایی صدا</label>
+                        <div class="info-icon" id="temp-info-icon" role="button" tabindex="0" aria-label="اطلاعات بیشتر">!</div>
+                    </div>
+                    <div class="slider-container">
+                        <input type="range" id="temperature-slider" min="0.1" max="1.5" step="0.05" value="0.9">
+                        <span id="temperature-value">0.9</span>
+                    </div>
+                </div>
+
+                <button type="submit" id="generate-btn">✨ خلق صدا با آلفا</button>
+            </form>
+
+            <div id="output-section">
+                <div id="status-message">صدای تولید شده در اینجا ظاهر خواهد شد.</div>
+                <div id="loading-animation-wrapper">
+                      <div class="orbital-loader">
+                         <div class="orbit"><div class="satellite"></div></div>
+                         <div class="orbit"><div class="satellite"></div></div>
+                         <div class="orbit"><div class="satellite"></div></div>
+                     </div>
+                     <p id="loading-text">در حال پردازش هوشمند و تولید صدا...</p>
+                </div>
+                
+                <div id="audio-player-content">
+                     <div class="audio-waveform-container">
+                         <span class="audio-time audio-current-time">0:00</span>
+                         <div class="audio-waveform">
+                             <canvas id="audio-waveform-canvas"></canvas>
+                             <div class="audio-waveform-dashed-line"></div>
+                         </div>
+                         <span class="audio-time audio-total-time">0:00</span>
+                     </div>
+                      <div class="audio-controls-group">
+                         <button class="audio-skip-btn backward">
+                             <svg viewBox="0 0 24 24"><path d="M11 16V8l-4 4 4 4zm4-12v16l7-8-7-8z"></path></svg>
+                         </button>
+                         <button class="audio-play-pause-btn-large">
+                             <svg viewBox="0 0 24 24" class="play-icon"><path d="M8 5v14l11-7z"></path></svg>
+                             <svg viewBox="0 0 24 24" class="pause-icon" style="display:none;"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"></path></svg>
+                         </button>
+                         <button class="audio-skip-btn forward">
+                             <svg viewBox="0 0 24 24"><path d="M13 16V8l4 4-4 4zM9 4v16L2 12l7-8z"></path></svg>
+                         </button>
+                     </div>
+                      <div class="audio-utility-controls">
+                         <button class="audio-volume-btn">
+                             <svg viewBox="0 0 24 24" class="volume-high-icon"><path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02zM14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77s-2.99-7.86-7-8.77z"></path></svg>
+                             <svg viewBox="0 0 24 24" class="volume-mute-icon" style="display:none;"><path d="M7 9v6h4l5 5V4L11 9H7zM16.5 12c0-1.77-1.02-3.29-2.5-4.03v2.21l2.45 2.45c.03-.2.05-.41.05-.63zM19 12c0 .94-.23 1.82-.68 2.6L19 14.88c.45-.88.7-1.88.7-2.88 0-4.01-2.99-7.14-7-8.05v2.06c2.89.86 5 3.54 5 6.71zM4.55 4L2 6.55 9.45 14H7v6h4l5 5V14.55l4.05 4.05L22 18 12 8 4.55 4z"></path></svg>
+                         </button>
+                         <button class="audio-speed-btn">1x</button>
+                     </div>
+                </div>
+                <audio id="hidden-audio-player" style="display: none;"></audio>
+            </div>
+        </main>
+    </div>
+
+    <!-- Modals -->
+    <div id="speaker-modal" class="modal-overlay">
+        <div class="modal-dialog">
+            <div class="modal-header">
+                <h2>گالری گویندگان آلفا</h2>
+                <button type="button" class="close-modal-btn" data-modal-id="speaker-modal">×</button>
+            </div>
+            <div id="speaker-grid"></div>
+        </div>
+    </div>
+    <div id="info-modal" class="modal-overlay">
+        <div class="modal-dialog" style="max-width: 520px;">
+            <div class="modal-header">
+                <h2>🌡️ خلاقیت و پویایی صدا</h2>
+                <button type="button" class="close-modal-btn" data-modal-id="info-modal">×</button>
+            </div>
+            <div>
+                 <p style="color: var(--text-secondary); line-height: 1.9;">این پارامتر، میزان "غیرقابل پیش‌بینی بودن" و تنوع در صدای خروجی را کنترل می‌کند.</p>
+                 <p><strong>مقادیر بالاتر (نزدیک به ۱.۵):</strong> صدایی بسیار متنوع، احساسی و پویا ایجاد می‌کند. ایده‌آل برای محتوای خلاقانه و هنری.</p>
+                 <p><strong>مقادیر پایین‌تر (نزدیک به ۰.۱):</strong> صدایی پایدار، یکنواخت و قابل پیش‌بینی‌تر تولید می‌کند. مناسب برای خوانش متون رسمی و خبری.</p>
+            </div>
+        </div>
+    </div>
+    <input type="hidden" id="selected_speaker_id_storage" value="Charon">
+
+    <script>
     document.addEventListener('DOMContentLoaded', () => {
         // --- API URLs are now SIMPLE and STATIC again ---
-        // The proxy server will handle the redirection.
+        // The proxy server will handle the redirection logic.
         const JOIN_QUEUE_URL = `/gradio_api/queue/join`;
         const GET_DATA_URL_BASE = `/gradio_api/queue/data`;
         const FILE_URL_BASE = `/gradio_api/file=`;
 
-        const FN_INDEX = 1; // This remains the same
+        const FN_INDEX = 1; // This remains the same for the Hugging Face API call
 
-        // UPDATED SPEAKERS ARRAY
+        // UPDATED SPEAKERS ARRAY WITH NEW NAMES, GENDERS, AND IMAGE URLs
         const speakers = [
             { id: "Charon", name: "شهاب (مرد)", desc: "صدایی قدرتمند و رسا", imgUrl: "https://uploadkon.ir/uploads/a18705_25IMG-۲۰۲۵۰۷۰۵-۱۱۰۵۴۹.jpg" },
             { id: "Zephyr", name: "آوا (زن)", desc: "لطیف و دلنشین", imgUrl: "https://uploadkon.ir/uploads/029605_25IMG-۲۰۲۵۰۷۰۵-۱۱۱۲۵۲.jpg" },
@@ -60,7 +357,7 @@
         // --- Modal Management ---
         const showModal = (modalElement) => { modalElement.classList.add('visible'); setTimeout(() => modalElement.querySelector('button')?.focus(), 50); }; const hideModal = (modalElement) => modalElement.classList.remove('visible'); changeSpeakerBtn.addEventListener('click', () => { createSpeakerCardsInModal(); showModal(speakerModal); }); selectedSpeakerCard.addEventListener('click', () => { createSpeakerCardsInModal(); showModal(speakerModal); }); tempInfoIcon.addEventListener('click', () => showModal(infoModal)); document.querySelectorAll('.modal-overlay').forEach(o => o.addEventListener('click', (e) => (e.target === o) && hideModal(o))); document.querySelectorAll('.close-modal-btn').forEach(b => b.addEventListener('click', () => hideModal(document.getElementById(b.dataset.modalId)))); document.addEventListener('keydown', (e) => (e.key === 'Escape') && document.querySelectorAll('.modal-overlay.visible').forEach(hideModal)); tempSlider.addEventListener('input', () => { tempValueSpan.textContent = tempSlider.value; });
 
-        // --- Audio Player Logic ---
+        // --- Audio Player Logic (with Waveform Fix) ---
         const formatTime = (seconds) => { if (isNaN(seconds) || seconds < 0) return '0:00'; const minutes = Math.floor(seconds / 60); const remainingSeconds = Math.floor(seconds % 60); return `${minutes}:${remainingSeconds < 10 ? '0' : ''}${remainingSeconds}`; };
         
         function drawWaveform(progressRatio = 0) {
@@ -206,8 +503,7 @@
             generateBtn.disabled = false; generateBtn.innerHTML = '✨ خلق صدا با آلفا';
         };
 
-        // --- API Call ---
-        // This function is now much simpler, all requests go to the same base URLs
+        // --- API Call (Simplified for Server-Side Load Balancing) ---
         async function generateAudio(event) {
             event.preventDefault();
             showLoadingState();
@@ -225,9 +521,13 @@
                 fn_index: FN_INDEX,
                 data: [false, null, text, promptInput.value, selectedSpeakerIdStorage.value, parseFloat(tempSlider.value)],
                 event_data: null,
-                session_hash: Math.random().toString(36).substring(2)
+                // The session_hash is CRITICAL for server-side load balancing
+                // as the server uses it to track which HF Space to route the request to.
+                session_hash: Math.random().toString(36).substring(2) 
             };
             try {
+                // All requests now go to the simple /gradio_api endpoint
+                // The server.js will handle redirecting to the correct HF Space
                 const joinQueueResponse = await fetch(JOIN_QUEUE_URL, {
                     method: "POST",
                     headers: { "Content-Type": "application/json" },
@@ -292,4 +592,6 @@
         audioPlayerContent.style.display = 'none';
         outputSection.classList.remove('has-content');
     });
-</script>
+    </script>
+</body>
+</html>
