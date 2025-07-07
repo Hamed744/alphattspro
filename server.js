@@ -5,69 +5,79 @@ const path = require('path');
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// --- شروع تغییرات ---
-
-// 1. لیست تمام اسپیس‌های Hugging Face شما
-const HF_SPACES = [
+// 1. لیستی از تمام اسپیس‌های هدف خود را اینجا وارد کنید
+const HF_TARGETS = [
     'hamed744-ttspro.hf.space',
     'hamed744-ttspro2.hf.space',
     'hamed744-ttspro3.hf.space'
 ];
 
-// 2. یک شمارنده برای انتخاب اسپیس بعدی
-let currentSpaceIndex = 0;
+let currentTargetIndex = 0;
+const sessionMap = {}; // این آبجکت برای نگهداری session و اسپیس مربوطه است
 
-// بررسی اینکه آیا اسپیسی در لیست وجود دارد یا نه
-if (HF_SPACES.length === 0) {
-    console.error("خطای حیاتی: هیچ آدرس اسپیسی در آرایه HF_SPACES تعریف نشده است. سرور متوقف می‌شود.");
-    process.exit(1); // خروج از برنامه
-}
+// میدل‌ور برای خواندن body درخواست‌های POST (برای گرفتن session_hash)
+app.use(express.json());
 
-// 3. تابع انتخاب‌کننده اسپیس به صورت چرخشی
-const selectHost = (req) => {
-    // اسپیس فعلی را بر اساس شمارنده انتخاب کن
-    const selectedHost = HF_SPACES[currentSpaceIndex];
-
-    // شمارنده را برای درخواست *بعدی* یک واحد افزایش بده
-    // وقتی به انتهای لیست رسید، دوباره از صفر شروع می‌کند (منطق چرخشی)
-    currentSpaceIndex = (currentSpaceIndex + 1) % HF_SPACES.length;
-    
-    // این لاگ به شما کمک می‌کند در لاگ‌های Render ببینید هر درخواست به کدام اسپیس ارسال می‌شود
-    console.log(`[Proxy] Forwarding request for ${req.originalUrl} to -> ${selectedHost}`);
-    
-    // آدرس انتخاب شده را برای پراکسی برگردان
-    return selectedHost;
-};
-
-// --- پایان تغییرات ---
-
-
-// Serve static files from the 'public' directory
+// سرو کردن فایل‌های استاتیک از پوشه 'public'
 app.use(express.static(path.join(__dirname, 'public')));
 
-// Proxy all requests starting with /gradio_api to a dynamically selected Hugging Face Space
+// 2. پراکسی هوشمند با منطق چرخشی و Sticky Session
 app.use('/gradio_api', proxy(
-    // 4. به جای یک آدرس ثابت، از تابع انتخاب‌کننده استفاده می‌کنیم
-    selectHost, 
+    (req) => {
+        // از body (برای /join) یا query (برای /data و /file) مقدار session_hash را بخوان
+        const sessionHash = req.body.session_hash || req.query.session_hash;
+
+        if (sessionHash) {
+            // اگر این session قبلا ثبت نشده، یک اسپیس جدید به آن اختصاص بده
+            if (!sessionMap[sessionHash]) {
+                const targetHost = HF_TARGETS[currentTargetIndex];
+                sessionMap[sessionHash] = targetHost;
+                
+                console.log(`[ASSIGN] New session ${sessionHash} -> ${targetHost}`);
+
+                // ایندکس را برای درخواست بعدی یک واحد جلو ببر (و به اول لیست برگرد اگر به آخر رسید)
+                currentTargetIndex = (currentTargetIndex + 1) % HF_TARGETS.length;
+
+                // برای جلوگیری از پر شدن حافظه، session را بعد از 5 دقیقه پاک کن
+                setTimeout(() => {
+                    delete sessionMap[sessionHash];
+                    console.log(`[CLEANUP] Session ${sessionHash} expired.`);
+                }, 300000); // 5 دقیقه
+            }
+            // اسپیس اختصاص داده شده به این session را برگردان
+            return sessionMap[sessionHash];
+        }
+
+        // اگر درخواستی session_hash نداشت (که نباید اتفاق بیفتد)، به عنوان آخرین راه حل به صورت چرخشی عمل کن
+        console.warn(`[WARN] Request without session_hash: ${req.path}. Using default round-robin.`);
+        const fallbackHost = HF_TARGETS[currentTargetIndex];
+        currentTargetIndex = (currentTargetIndex + 1) % HF_TARGETS.length;
+        return fallbackHost;
+    },
     {
-        https: true,
+        https: true, // اتصال امن به Hugging Face
         proxyReqPathResolver: function (req) {
             return req.originalUrl;
         },
         proxyErrorHandler: function (err, res, next) {
             console.error('Proxy error encountered:', err);
-            res.status(500).send('An error occurred while connecting to the AI service. Please try again later.');
+            // سعی کن session را از map حذف کنی تا درخواست بعدی دوباره تلاش کند
+            const sessionHash = req.body.session_hash || req.query.session_hash;
+            if (sessionHash) {
+                delete sessionMap[sessionHash];
+            }
+            res.status(502).send('An error occurred while connecting to the AI service. Please try again later.');
         }
     }
 ));
 
-// Fallback for any other route - serve your index.html
+// فال‌بک برای تمام روت‌های دیگر
 app.get('*', (req, res) => {
     res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
 
-// Start the server
+// اجرای سرور
 app.listen(PORT, () => {
     console.log(`Proxy server listening on port ${PORT}`);
-    console.log(`Application is ready and distributing requests across ${HF_SPACES.length} space(s).`);
+    console.log(`Distributing requests across: ${HF_TARGETS.join(', ')}`);
 });
