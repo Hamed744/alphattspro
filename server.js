@@ -3,43 +3,62 @@ const proxy = require('express-http-proxy');
 const path = require('path');
 
 const app = express();
-const PORT = process.env.PORT || 3000; // Render will provide a PORT, otherwise use 3000
+const PORT = process.env.PORT || 3000;
 
-// Target Hugging Face Space URL
-const HF_TARGET = 'hamed744-ttspro.hf.space';
+// نقشه ای از کلیدهای ساده به آدرس کامل اسپیس ها
+// این کار باعث می شود کد سمت کاربر تمیزتر باشد
+const HF_TARGETS = {
+    'space1': 'hamed744-ttspro.hf.space',
+    'space2': 'hamed744-ttspro2.hf.space',
+    'space3': 'hamed744-ttspro3.hf.space'
+};
 
-// Serve static files from the 'public' directory
-// This will serve your index.html, CSS, JS, etc.
+// سرویس دهی فایل های استاتیک مثل index.html
 app.use(express.static(path.join(__dirname, 'public')));
 
-// Proxy all requests starting with /gradio_api to Hugging Face Space
-// This handles:
-// - /gradio_api/queue/join (POST)
-// - /gradio_api/queue/data?session_hash=... (GET, including SSE streaming)
-// - /gradio_api/file=... (GET, for audio files)
-app.use('/gradio_api', proxy(HF_TARGET, {
-    https: true, // Crucial for connecting to Hugging Face securely
-    proxyReqPathResolver: function (req) {
-        // Reconstructs the full path including the /gradio_api prefix and query parameters
-        // req.originalUrl is perfect for this as it contains the full path from the client
-        // e.g., /gradio_api/queue/data?session_hash=xyz will be forwarded as /gradio_api/queue/data?session_hash=xyz
-        return req.originalUrl;
-    },
-    // Optional: Add error handling for proxy requests
-    proxyErrorHandler: function (err, res, next) {
-        console.error('Proxy error encountered:', err);
-        res.status(500).send('An error occurred while connecting to the AI service. Please try again later.');
+// *** بخش اصلی تغییرات اینجاست ***
+// ما یک پارامتر داینامیک به نام targetKey به مسیر اضافه می کنیم
+// مثلا: /space1/gradio_api/... یا /space2/gradio_api/...
+app.use('/:targetKey/gradio_api', proxy(
+    (req) => {
+        const targetKey = req.params.targetKey;
+        // آدرس اسپیس مورد نظر را از روی نقشه پیدا می کنیم
+        const targetHost = HF_TARGETS[targetKey];
+        
+        // اگر کلید معتبر بود، آدرس آن را برمیگردانیم
+        if (targetHost) {
+            console.log(`Proxying request for key '${targetKey}' to -> ${targetHost}`);
+            return targetHost;
+        }
+        
+        // در صورت ارسال کلید نامعتبر، به یک مقصد پیش فرض ارسال می کنیم
+        console.warn(`Invalid target key '${targetKey}'. Falling back to default.`);
+        return HF_TARGETS['space1']; 
+    }, 
+    {
+        https: true, // اتصال امن به Hugging Face
+        proxyReqPathResolver: function (req) {
+            // مسیر اصلی درخواست را بازسازی می کنیم
+            // مثال: /space1/gradio_api/queue/join  ->  /gradio_api/queue/join
+            const originalPath = req.originalUrl;
+            const targetKey = req.params.targetKey;
+            const resolvedPath = originalPath.replace(`/${targetKey}`, '');
+            return resolvedPath;
+        },
+        proxyErrorHandler: function (err, res, next) {
+            console.error('Proxy error encountered:', err);
+            res.status(502).send('Proxy Error: Could not connect to the AI service.');
+        }
     }
-}));
+));
 
-// Fallback for any other route - serve your index.html
-// This is important for single-page applications or direct link access.
+// برای هر مسیر دیگری، فایل اصلی برنامه را نمایش بده
 app.get('*', (req, res) => {
     res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
 
-// Start the server
+// اجرای سرور
 app.listen(PORT, () => {
-    console.log(`Proxy server listening on port ${PORT}`);
-    console.log(`Access your application at: http://localhost:${PORT} (or your Render.com URL)`);
+    console.log(`Smart proxy server listening on port ${PORT}`);
+    console.log('Available targets:', HF_TARGETS);
 });
