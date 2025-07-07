@@ -1,45 +1,60 @@
+// server.js
+// این کد نهایی و صحیح برای توزیع بار بین سه اسپیس شماست.
+
 const express = require('express');
 const proxy = require('express-http-proxy');
 const path = require('path');
 
 const app = express();
-const PORT = process.env.PORT || 3000; // Render will provide a PORT, otherwise use 3000
+const PORT = process.env.PORT || 3000;
 
-// Target Hugging Face Space URL
-const HF_TARGET = 'hamed744-ttspro.hf.space';
+// لیست آدرس‌های Hugging Face Space شما
+const HF_TARGETS = [
+    'hamed744-ttspro.hf.space',   // اسپیس اول (مطمئن شوید فعال است)
+    'hamed744-ttspro2.hf.space',  // اسپیس دوم (مطمئن شوید فعال است)
+    'hamed744-ttspro3.hf.space'   // اسپیس سوم (مطمئن شوید فعال است)
+];
 
-// Serve static files from the 'public' directory
-// This will serve your index.html, CSS, JS, etc.
+// این متغیر، شماره اسپیسی که باید درخواست بعدی را دریافت کند، نگه می‌دارد.
+let currentTargetIndex = 0;
+
+// این بخش فایل‌های استاتیک مثل index.html را سرو می‌کند.
 app.use(express.static(path.join(__dirname, 'public')));
 
-// Proxy all requests starting with /gradio_api to Hugging Face Space
-// This handles:
-// - /gradio_api/queue/join (POST)
-// - /gradio_api/queue/data?session_hash=... (GET, including SSE streaming)
-// - /gradio_api/file=... (GET, for audio files)
-app.use('/gradio_api', proxy(HF_TARGET, {
-    https: true, // Crucial for connecting to Hugging Face securely
-    proxyReqPathResolver: function (req) {
-        // Reconstructs the full path including the /gradio_api prefix and query parameters
-        // req.originalUrl is perfect for this as it contains the full path from the client
-        // e.g., /gradio_api/queue/data?session_hash=xyz will be forwarded as /gradio_api/queue/data?session_hash=xyz
-        return req.originalUrl;
-    },
-    // Optional: Add error handling for proxy requests
-    proxyErrorHandler: function (err, res, next) {
-        console.error('Proxy error encountered:', err);
-        res.status(500).send('An error occurred while connecting to the AI service. Please try again later.');
-    }
-}));
+// این بخش مهم، تمام درخواست‌های API را مدیریت می‌کند.
+// این یک "middleware" است که قبل از هر درخواست به مسیر /gradio_api اجرا می‌شود.
+app.use('/gradio_api', (req, res, next) => {
+    // 1. انتخاب اسپیس بعدی به صورت چرخشی (Round-Robin)
+    const target = HF_TARGETS[currentTargetIndex];
 
-// Fallback for any other route - serve your index.html
-// This is important for single-page applications or direct link access.
+    // 2. ایندکس را برای درخواست بعدی یک واحد جلو می‌بریم.
+    // عملگر % باعث می‌شود که بعد از آخرین اسپیس، دوباره به اولین اسپیس برگردیم.
+    currentTargetIndex = (currentTargetIndex + 1) % HF_TARGETS.length;
+
+    // این لاگ برای دیباگ کردن بسیار مفید است. شما می‌توانید در لاگ‌های رندر ببینید هر درخواست به کدام اسپیس ارسال شده است.
+    console.log(`[Load Balancer] Forwarding request to: ${target}`);
+
+    // 3. حالا که هدف (target) مشخص شد، پروکسی را با آن هدف اجرا می‌کنیم.
+    // این بخش درخواست را به اسپیس انتخاب شده ارسال می‌کند.
+    proxy(target, {
+        https: true,
+        proxyReqPathResolver: function (proxyReq) {
+            return proxyReq.originalUrl;
+        },
+        proxyErrorHandler: function (err, proxyRes, next) {
+            console.error(`[Proxy Error] Could not connect to ${target}. Error: ${err.message}`);
+            proxyRes.status(503).send('The AI service is temporarily unavailable. Please try again.'); // 503 Service Unavailable
+        }
+    })(req, res, next); // این فراخوانی برای اجرای پروکسی ضروری است.
+});
+
+// این بخش اطمینان می‌دهد که همه مسیرهای دیگر به صفحه اصلی شما هدایت می‌شوند.
 app.get('*', (req, res) => {
     res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
 
-// Start the server
+// سرور را اجرا می‌کند
 app.listen(PORT, () => {
-    console.log(`Proxy server listening on port ${PORT}`);
-    console.log(`Access your application at: http://localhost:${PORT} (or your Render.com URL)`);
+    console.log(`🚀 Alpha TTS server with Load Balancing is running on port ${PORT}`);
+    console.log(`Total Spaces in rotation: ${HF_TARGETS.length}`);
 });
