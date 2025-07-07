@@ -5,79 +5,61 @@ const path = require('path');
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// 1. لیستی از تمام اسپیس‌های هدف خود را اینجا وارد کنید
+// 1. لیست اسپیس‌های Hugging Face شما
+// به جای یک هدف ثابت، یک آرایه از اهداف تعریف می‌کنیم.
 const HF_TARGETS = [
     'hamed744-ttspro.hf.space',
     'hamed744-ttspro2.hf.space',
     'hamed744-ttspro3.hf.space'
 ];
 
+// 2. یک شمارنده برای دنبال کردن اسپیس بعدی
+// این متغیر باید بیرون از میدل‌ور پراکسی باشد تا مقدارش بین درخواست‌ها حفظ شود.
 let currentTargetIndex = 0;
-const sessionMap = {}; // این آبجکت برای نگهداری session و اسپیس مربوطه است
 
-// میدل‌ور برای خواندن body درخواست‌های POST (برای گرفتن session_hash)
-app.use(express.json());
-
-// سرو کردن فایل‌های استاتیک از پوشه 'public'
+// Serve static files from the 'public' directory
 app.use(express.static(path.join(__dirname, 'public')));
 
-// 2. پراکسی هوشمند با منطق چرخشی و Sticky Session
+// 3. تغییر در میدل‌ور پراکسی
+// ما اولین آرگومان تابع proxy را از یک رشته ثابت به یک تابع تغییر می‌دهیم.
+// این تابع برای هر درخواست اجرا شده و به صورت پویا تصمیم می‌گیرد که درخواست به کدام هاست ارسال شود.
 app.use('/gradio_api', proxy(
     (req) => {
-        // از body (برای /join) یا query (برای /data و /file) مقدار session_hash را بخوان
-        const sessionHash = req.body.session_hash || req.query.session_hash;
+        // انتخاب هدف برای این درخواست بر اساس شمارنده فعلی
+        const selectedTarget = HF_TARGETS[currentTargetIndex];
 
-        if (sessionHash) {
-            // اگر این session قبلا ثبت نشده، یک اسپیس جدید به آن اختصاص بده
-            if (!sessionMap[sessionHash]) {
-                const targetHost = HF_TARGETS[currentTargetIndex];
-                sessionMap[sessionHash] = targetHost;
-                
-                console.log(`[ASSIGN] New session ${sessionHash} -> ${targetHost}`);
+        // برای دیباگ کردن: در لاگ‌های سرور (Render) نمایش می‌دهد که درخواست به کدام اسپیس ارسال شد
+        console.log(`[${new Date().toISOString()}] Routing request to: ${selectedTarget}`);
 
-                // ایندکس را برای درخواست بعدی یک واحد جلو ببر (و به اول لیست برگرد اگر به آخر رسید)
-                currentTargetIndex = (currentTargetIndex + 1) % HF_TARGETS.length;
-
-                // برای جلوگیری از پر شدن حافظه، session را بعد از 5 دقیقه پاک کن
-                setTimeout(() => {
-                    delete sessionMap[sessionHash];
-                    console.log(`[CLEANUP] Session ${sessionHash} expired.`);
-                }, 300000); // 5 دقیقه
-            }
-            // اسپیس اختصاص داده شده به این session را برگردان
-            return sessionMap[sessionHash];
-        }
-
-        // اگر درخواستی session_hash نداشت (که نباید اتفاق بیفتد)، به عنوان آخرین راه حل به صورت چرخشی عمل کن
-        console.warn(`[WARN] Request without session_hash: ${req.path}. Using default round-robin.`);
-        const fallbackHost = HF_TARGETS[currentTargetIndex];
+        // به‌روزرسانی شمارنده برای درخواست بعدی (منطق چرخشی)
+        // از اپراتور باقیمانده (%) استفاده می‌کنیم تا شمارنده به صورت چرخشی در محدوده طول آرایه باقی بماند.
         currentTargetIndex = (currentTargetIndex + 1) % HF_TARGETS.length;
-        return fallbackHost;
+
+        // بازگرداندن هدف انتخابی برای این درخواست
+        return selectedTarget;
     },
     {
-        https: true, // اتصال امن به Hugging Face
+        https: true, // Crucial for connecting to Hugging Face securely
         proxyReqPathResolver: function (req) {
+            // این بخش بدون تغییر باقی می‌ماند و به درستی کار می‌کند
             return req.originalUrl;
         },
         proxyErrorHandler: function (err, res, next) {
             console.error('Proxy error encountered:', err);
-            // سعی کن session را از map حذف کنی تا درخواست بعدی دوباره تلاش کند
-            const sessionHash = req.body.session_hash || req.query.session_hash;
-            if (sessionHash) {
-                delete sessionMap[sessionHash];
-            }
+            // می‌توانید در اینجا یک منطق بازگشتی (retry) ساده هم اضافه کنید،
+            // اما برای شروع همین کافی است.
             res.status(502).send('An error occurred while connecting to the AI service. Please try again later.');
         }
     }
 ));
 
-// فال‌بک برای تمام روت‌های دیگر
+// Fallback for any other route - serve your index.html
 app.get('*', (req, res) => {
     res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
 
-// اجرای سرور
+// Start the server
 app.listen(PORT, () => {
-    console.log(`Proxy server listening on port ${PORT}`);
-    console.log(`Distributing requests across: ${HF_TARGETS.join(', ')}`);
+    console.log(`Proxy server with Round-Robin logic listening on port ${PORT}`);
+    console.log(`Targeting ${HF_TARGETS.length} Hugging Face Spaces.`);
 });
