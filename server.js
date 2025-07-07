@@ -1,79 +1,66 @@
+// server.js
+// این فایل پروژه‌ی رندر شماست که به عنوان پروکسی عمل می‌کند.
+
 const express = require('express');
 const proxy = require('express-http-proxy');
 const path = require('path');
 
 const app = express();
-const PORT = process.env.PORT || 3000;
+const PORT = process.env.PORT || 3000; // Render will provide a PORT, otherwise use 3000
 
-// ====================================================================
-// ۱. لیست تمام اسپیس‌های شما در اینجا قرار دارد
-// ====================================================================
-const HF_SPACES = [
-    'hamed744-ttspro.hf.space',   // اسپیس اصلی
+// --- تنها بخشی که تغییر کرده: لیست آدرس‌های Hugging Face Space ---
+// لیستی از آدرس کامل اسپیس‌های هاگینگ فیس شما
+// اطمینان حاصل کنید که این آدرس‌ها دقیقاً همان‌هایی هستند که شما ساخته‌اید.
+const HF_TARGETS = [
+    'hamed744-ttspro.hf.space',   // اسپیس اول
     'hamed744-ttspro2.hf.space',  // اسپیس دوم
     'hamed744-ttspro3.hf.space'   // اسپیس سوم
 ];
 
-// متغیری برای نگه‌داری ایندکس اسپیس بعدی که باید استفاده شود
-let currentSpaceIndex = 0;
+// متغیری برای نگهداری ایندکس اسپیس فعلی (برای Round-Robin)
+let currentTargetIndex = 0;
+// --- پایان بخش تغییر یافته ---
 
-console.log(`✅ Load balancer configured with ${HF_SPACES.length} target spaces.`);
 
-// ====================================================================
-// ۲. سرور فایل‌های استاتیک (HTML, CSS, JS) شما را ارائه می‌دهد
-// ====================================================================
-// این بخش بدون تغییر باقی می‌ماند
+// Serve static files from the 'public' directory
+// این خط مسئول سرو کردن فایل‌های HTML, CSS, JS از پوشه 'public' است.
 app.use(express.static(path.join(__dirname, 'public')));
 
-
-// ====================================================================
-// ۳. منطق اصلی توزیع بار (Load Balancer)
-// ====================================================================
-// به جای استفاده مستقیم از پروکسی، یک میان‌افزار (middleware) ایجاد می‌کنیم
-// تا قبل از ارسال هر درخواست، یک اسپیس را به صورت چرخشی انتخاب کند.
+// Proxy all requests starting with /gradio_api to Hugging Face Space
+// این بخش درخواست‌های API را از مرورگر کاربر می‌گیرد و به اسپیس‌های هاگینگ فیس ارسال می‌کند.
 app.use('/gradio_api', (req, res, next) => {
-    
-    // انتخاب اسپیس هدف از لیست
-    const targetSpace = HF_SPACES[currentSpaceIndex];
-    
-    // به‌روزرسانی ایندکس برای درخواست بعدی (الگوریتم چرخشی یا Round-Robin)
-    currentSpaceIndex = (currentSpaceIndex + 1) % HF_SPACES.length;
-    
-    // لاگ کردن برای اینکه ببینیم هر درخواست به کدام اسپیس می‌رود (برای دیباگ)
-    console.log(`[${new Date().toISOString()}] Forwarding request to: ${targetSpace}${req.originalUrl}`);
-    
-    // اجرای پروکسی با هدف داینامیکی که انتخاب کردیم
-    proxy(targetSpace, {
-        https: true, // اتصال امن به هاگینگ فیس
-        proxyReqPathResolver: function (proxyReq) {
-            // مسیر کامل درخواست را بدون تغییر ارسال می‌کند
-            return proxyReq.originalUrl;
+    // 1. انتخاب اسپیس بعدی به صورت چرخشی (Round-Robin)
+    const target = HF_TARGETS[currentTargetIndex];
+    currentTargetIndex = (currentTargetIndex + 1) % HF_TARGETS.length; // به ایندکس بعدی برو، اگر به آخر رسیدی برگرد به اول
+
+    console.log(`[Proxy] Forwarding request to Hugging Face Space: ${target} (Next target index: ${currentTargetIndex})`); // برای لاگ و دیباگ
+
+    // 2. اجرای پروکسی با هدف (target) انتخاب شده
+    proxy(target, {
+        https: true, // بسیار مهم: برای اتصال امن به Hugging Face از HTTPS استفاده شود
+        proxyReqPathResolver: function (req) {
+            // این تابع مسیر درخواست اصلی را حفظ می‌کند تا به درستی به Gradio ارسال شود.
+            // مثلاً /gradio_api/queue/data?session_hash=xyz به /gradio_api/queue/data?session_hash=xyz تبدیل می‌شود.
+            return req.originalUrl;
         },
+        // مدیریت خطا در صورتی که پروکسی نتواند به اسپیس هاگینگ فیس متصل شود
         proxyErrorHandler: function (err, proxyRes, next) {
-            console.error(`❌ Proxy error for target ${targetSpace}:`, err);
-            // به کاربر یک پیام خطای عمومی نشان می‌دهد
-            if (!proxyRes.headersSent) {
-                proxyRes.status(503).send('سرویس هوش مصنوعی در حال حاضر در دسترس نیست. لطفا بعدا تلاش کنید.');
-            }
+            console.error('[Proxy Error] Failed to connect to Hugging Face Space:', err.message);
+            // می‌توانید در اینجا منطق پیشرفته‌تری برای تلاش مجدد یا اعلام به کاربر پیاده‌سازی کنید.
+            res.status(500).send('An error occurred while connecting to the AI service. Please try again later.');
         }
-    })(req, res, next);
+    })(req, res, next); // مهم: ()req, res, next باید بعد از تابع proxy فراخوانی شود
 });
 
-
-// ====================================================================
-// ۴. مسیر Fallback برای Single Page Application
-// ====================================================================
-// این بخش تضمین می‌کند که اگر کاربر مستقیماً به آدرسی غیر از ریشه مراجعه کرد،
-// همچنان فایل index.html بارگذاری شود.
+// Fallback for any other route - serve your index.html
+// این اطمینان می‌دهد که اگر کاربر مستقیماً به آدرس اصلی رندر شما رفت، صفحه index.html را ببیند.
 app.get('*', (req, res) => {
     res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
 
-
-// ====================================================================
-// ۵. راه‌اندازی سرور
-// ====================================================================
+// Start the server
 app.listen(PORT, () => {
-    console.log(`🚀 Proxy server with load balancing is running on port ${PORT}`);
-    console.log(`Your application is accessible at your Render.com URL.`);
+    console.log(`Proxy server with Load Balancing for Hugging Face Spaces listening on port ${PORT}`);
+    console.log(`Access your application at: http://localhost:${PORT} (or your Render.com URL)`);
+    console.log(`Currently configured Hugging Face Spaces: ${HF_TARGETS.join(', ')}`);
 });
