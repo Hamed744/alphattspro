@@ -6,7 +6,7 @@ const app = express();
 const PORT = process.env.PORT || 3000; // Render will provide a PORT, otherwise use 3000
 
 // Target Hugging Face Space URL
-const HF_TARGET = 'hamed744-ttspro.hf.space';
+const HF_TARGET = 'hamed744-ttspro2.hf.space';
 
 // Serve static files from the 'public' directory
 // This will serve your index.html, CSS, JS, etc.
