@@ -106,7 +106,6 @@
         .speaker-card:hover .speaker-visual { box-shadow: var(--shadow-lg); }
         .speaker-card img { width: 100%; height: 130px; object-fit: cover; display: block; background-color: #e0e0e0; border-radius: 14px; transition: transform 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94); }
         .speaker-card:hover img { transform: scale(1.1); }
-        .speaker-card .speaker-name { padding: 0.8rem 0.4rem 0.2rem; font-weight: 600; font-size: 0.95em; color: var(--text-secondary); transition: color 0.2s; }
         .speaker-card input[type="radio"]:checked + .speaker-visual { border-color: var(--accent-secondary); box-shadow: 0 0 25px -5px var(--accent-secondary-glow); transform: scale(1.05); }
 
         /* --- Slider --- */
@@ -549,7 +548,9 @@
                     // Force reload for robust waveform generation
                     hiddenAudioPlayer.src = ''; // Clear current source
                     hiddenAudioPlayer.load(); // Request browser to load it
-                    hiddenAudioPlayer.src = `${FILE_URL_BASE}${finalFilePath}`; // Set new source
+                    // --- تنها خطی که تغییر کرده ---
+                    hiddenAudioPlayer.src = `${FILE_URL_BASE}${encodeURIComponent(finalFilePath)}`; // Set new source
+                    // --- پایان تغییر ---
                     // loadedmetadata event listener will now handle processing and drawing
                     showResultState(true);
                 } else if (Date.now() - startTime >= timeoutDuration) {
