@@ -297,14 +297,15 @@
 
     <script>
     document.addEventListener('DOMContentLoaded', () => {
-        // --- API URLs are now SIMPLE and STATIC ---
-        // The proxy server will handle the redirection. All logic is on the server.
+        // API URLs are now SIMPLE and STATIC. 
+        // The proxy server will handle the complex redirection (load balancing).
         const JOIN_QUEUE_URL = `/gradio_api/queue/join`;
         const GET_DATA_URL_BASE = `/gradio_api/queue/data`;
         const FILE_URL_BASE = `/gradio_api/file=`;
 
         const FN_INDEX = 1;
 
+        // UPDATED SPEAKERS ARRAY
         const speakers = [
             { id: "Charon", name: "شهاب (مرد)", desc: "صدایی قدرتمند و رسا", imgUrl: "https://uploadkon.ir/uploads/a18705_25IMG-۲۰۲۵۰۷۰۵-۱۱۰۵۴۹.jpg" },
             { id: "Zephyr", name: "آوا (زن)", desc: "لطیف و دلنشین", imgUrl: "https://uploadkon.ir/uploads/029605_25IMG-۲۰۲۵۰۷۰۵-۱۱۱۲۵۲.jpg" },
@@ -364,21 +365,15 @@
             audioWaveformCanvas.width = audioWaveformCanvas.offsetWidth * dpr;
             audioWaveformCanvas.height = audioWaveformCanvas.offsetHeight * dpr;
             waveformCtx.scale(dpr, dpr);
-
             const width = audioWaveformCanvas.offsetWidth;
             const height = audioWaveformCanvas.offsetHeight;
-            
             if (width === 0 || height === 0) return;
-
             waveformCtx.clearRect(0, 0, width, height);
-
             const barWidth = 3; const barGap = 2; const totalBarAndGap = barWidth + barGap;
             const numBars = Math.floor(width / totalBarAndGap);
             const offset = (width - (numBars * totalBarAndGap)) / 2;
-
             const activeColor = getComputedStyle(document.documentElement).getPropertyValue('--waveform-color-active').trim();
             const inactiveColor = getComputedStyle(document.documentElement).getPropertyValue('--waveform-color-inactive').trim();
-
             waveformCtx.fillStyle = inactiveColor;
             for (let i = 0; i < numBars; i++) {
                 const peak = audioPeaks[i] || 0;
@@ -387,19 +382,14 @@
                 const y = (height - barHeight) / 2;
                 waveformCtx.fillRect(x, y, barWidth, barHeight);
             }
-
             const activeFillEnd = progressRatio * width;
             const gradientFadeWidth = 80;
             const gradientSolidStart = Math.max(0, activeFillEnd - gradientFadeWidth);
-
             const activeGradient = waveformCtx.createLinearGradient(0, 0, width, 0);
-            
             activeGradient.addColorStop(0, activeColor);
             activeGradient.addColorStop(gradientSolidStart / width, activeColor);
             activeGradient.addColorStop(activeFillEnd / width, inactiveColor);
-
             waveformCtx.fillStyle = activeGradient;
-
             for (let i = 0; i < numBars; i++) {
                 const peak = audioPeaks[i] || 0;
                 const barHeight = peak * height;
@@ -407,7 +397,7 @@
                 const y = (height - barHeight) / 2;
                 waveformCtx.fillRect(x, y, barWidth, barHeight);
             }
-         }
+        }
         
         const updatePlayerUI = () => {
             playIcon.style.display = hiddenAudioPlayer.paused || hiddenAudioPlayer.ended ? 'block' : 'none';
@@ -502,11 +492,10 @@
             generateBtn.disabled = false; generateBtn.innerHTML = '✨ خلق صدا با آلفا';
         };
 
-        // --- API Call ---
+        // --- API Call (Simplified) ---
         async function generateAudio(event) {
             event.preventDefault();
             showLoadingState();
-
             const text = textInput.value;
             if (!text.trim()) {
                 showResultState(false, 'خطا: متن ورودی نمی‌تواند خالی باشد.');
