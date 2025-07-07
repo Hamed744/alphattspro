@@ -297,15 +297,14 @@
 
     <script>
     document.addEventListener('DOMContentLoaded', () => {
-        // --- API URLs are now SIMPLE and STATIC again ---
-        // The proxy server will handle the redirection logic.
+        // --- API URLs are now SIMPLE and STATIC ---
+        // The proxy server will handle the redirection. All logic is on the server.
         const JOIN_QUEUE_URL = `/gradio_api/queue/join`;
         const GET_DATA_URL_BASE = `/gradio_api/queue/data`;
         const FILE_URL_BASE = `/gradio_api/file=`;
 
-        const FN_INDEX = 1; // This remains the same for the Hugging Face API call
+        const FN_INDEX = 1;
 
-        // UPDATED SPEAKERS ARRAY WITH NEW NAMES, GENDERS, AND IMAGE URLs
         const speakers = [
             { id: "Charon", name: "شهاب (مرد)", desc: "صدایی قدرتمند و رسا", imgUrl: "https://uploadkon.ir/uploads/a18705_25IMG-۲۰۲۵۰۷۰۵-۱۱۰۵۴۹.jpg" },
             { id: "Zephyr", name: "آوا (زن)", desc: "لطیف و دلنشین", imgUrl: "https://uploadkon.ir/uploads/029605_25IMG-۲۰۲۵۰۷۰۵-۱۱۱۲۵۲.jpg" },
@@ -357,7 +356,7 @@
         // --- Modal Management ---
         const showModal = (modalElement) => { modalElement.classList.add('visible'); setTimeout(() => modalElement.querySelector('button')?.focus(), 50); }; const hideModal = (modalElement) => modalElement.classList.remove('visible'); changeSpeakerBtn.addEventListener('click', () => { createSpeakerCardsInModal(); showModal(speakerModal); }); selectedSpeakerCard.addEventListener('click', () => { createSpeakerCardsInModal(); showModal(speakerModal); }); tempInfoIcon.addEventListener('click', () => showModal(infoModal)); document.querySelectorAll('.modal-overlay').forEach(o => o.addEventListener('click', (e) => (e.target === o) && hideModal(o))); document.querySelectorAll('.close-modal-btn').forEach(b => b.addEventListener('click', () => hideModal(document.getElementById(b.dataset.modalId)))); document.addEventListener('keydown', (e) => (e.key === 'Escape') && document.querySelectorAll('.modal-overlay.visible').forEach(hideModal)); tempSlider.addEventListener('input', () => { tempValueSpan.textContent = tempSlider.value; });
 
-        // --- Audio Player Logic (with Waveform Fix) ---
+        // --- Audio Player Logic ---
         const formatTime = (seconds) => { if (isNaN(seconds) || seconds < 0) return '0:00'; const minutes = Math.floor(seconds / 60); const remainingSeconds = Math.floor(seconds % 60); return `${minutes}:${remainingSeconds < 10 ? '0' : ''}${remainingSeconds}`; };
         
         function drawWaveform(progressRatio = 0) {
@@ -503,7 +502,7 @@
             generateBtn.disabled = false; generateBtn.innerHTML = '✨ خلق صدا با آلفا';
         };
 
-        // --- API Call (Simplified for Server-Side Load Balancing) ---
+        // --- API Call ---
         async function generateAudio(event) {
             event.preventDefault();
             showLoadingState();
@@ -521,13 +520,9 @@
                 fn_index: FN_INDEX,
                 data: [false, null, text, promptInput.value, selectedSpeakerIdStorage.value, parseFloat(tempSlider.value)],
                 event_data: null,
-                // The session_hash is CRITICAL for server-side load balancing
-                // as the server uses it to track which HF Space to route the request to.
-                session_hash: Math.random().toString(36).substring(2) 
+                session_hash: Math.random().toString(36).substring(2)
             };
             try {
-                // All requests now go to the simple /gradio_api endpoint
-                // The server.js will handle redirecting to the correct HF Space
                 const joinQueueResponse = await fetch(JOIN_QUEUE_URL, {
                     method: "POST",
                     headers: { "Content-Type": "application/json" },
