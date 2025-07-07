@@ -1,5 +1,5 @@
 // server.js
-// این کد نهایی با منطق "Sticky Sessions" برای حل مشکل شماست.
+// این کد نهایی و قطعی با استفاده از هدر Referer برای مسیریابی صحیح است.
 
 const express = require('express');
 const proxy = require('express-http-proxy');
@@ -8,9 +8,6 @@ const path = require('path');
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// برای خواندن JSON از بدنه درخواست (برای گرفتن session_hash)
-app.use(express.json());
-
 // لیست آدرس‌های Hugging Face Space شما
 const HF_TARGETS = [
     'hamed744-ttspro.hf.space',
@@ -18,47 +15,39 @@ const HF_TARGETS = [
     'hamed744-ttspro3.hf.space'
 ];
 
-// این متغیر، شماره اسپیسی که باید درخواست بعدی را دریافت کند، نگه می‌دارد.
+// این متغیر، شماره اسپیسی که باید درخواست‌های جدید را دریافت کند، نگه می‌دارد.
 let nextTargetIndex = 0;
-
-// **بخش کلیدی جدید:**
-// یک Map برای نگهداری اینکه کدام session_hash به کدام اسپیس متصل شده است.
-// { 'session_hash_123': 'hamed744-ttspro.hf.space', 'session_hash_456': 'hamed744-ttspro2.hf.space' }
-const sessionToTargetMap = new Map();
 
 // این بخش فایل‌های استاتیک مثل index.html را سرو می‌کند.
 app.use(express.static(path.join(__dirname, 'public')));
 
-
 // این بخش مهم، تمام درخواست‌های API را مدیریت می‌کند.
 app.use('/gradio_api', (req, res, next) => {
     let target;
-    // session_hash را از درخواست استخراج می‌کنیم.
-    // می‌تواند در body (برای join) یا در query (برای data/file) باشد.
-    const sessionHash = req.body.session_hash || req.query.session_hash;
+    
+    // --- منطق جدید و کلیدی ---
+    // آیا درخواست برای دریافت یک فایل است؟ (مسیر شامل /file= می‌شود)
+    const isFileRequest = req.originalUrl.includes('/file=');
+    const refererHeader = req.headers.referer;
 
-    if (sessionHash && sessionToTargetMap.has(sessionHash)) {
-        // اگر این session قبلاً به یک اسپیس اختصاص داده شده، از همان استفاده کن.
-        target = sessionToTargetMap.get(sessionHash);
-        console.log(`[Sticky Session] Found existing session ${sessionHash}. Routing to: ${target}`);
-    } else {
-        // اگر این یک session جدید است، یک اسپیس به آن اختصاص بده.
+    if (isFileRequest && refererHeader) {
+        // اگر درخواست برای فایل است و هدر Referer وجود دارد،
+        // سعی می‌کنیم اسپیس اصلی را از آن استخراج کنیم.
+        const refererUrl = new URL(refererHeader);
+        const sourceHost = refererUrl.searchParams.get('__hf_space_host'); // هاگینگ فیس این پارامتر را اضافه می‌کند
+        
+        if (sourceHost && HF_TARGETS.includes(sourceHost)) {
+            target = sourceHost;
+            console.log(`[File Request Routing] Referer found. Routing to original space: ${target}`);
+        }
+    }
+    
+    if (!target) {
+        // اگر نتوانستیم هدف را از Referer پیدا کنیم (مثلاً برای اولین درخواست)،
+        // از روش چرخشی برای انتخاب یک اسپیس استفاده می‌کنیم.
         target = HF_TARGETS[nextTargetIndex];
         nextTargetIndex = (nextTargetIndex + 1) % HF_TARGETS.length;
-        
-        if (sessionHash) {
-            // اسپیس انتخاب شده را برای این session به خاطر بسپار.
-            sessionToTargetMap.set(sessionHash, target);
-            console.log(`[New Session] Assigning session ${sessionHash} to: ${target}`);
-            
-            // برای جلوگیری از پر شدن حافظه، این session را بعد از 10 دقیقه پاک می‌کنیم.
-            setTimeout(() => {
-                sessionToTargetMap.delete(sessionHash);
-                console.log(`[Cleanup] Session ${sessionHash} expired and was removed.`);
-            }, 10 * 60 * 1000); // 10 دقیقه
-        } else {
-             console.log(`[Warning] Request without session_hash. Using round-robin target: ${target}`);
-        }
+        console.log(`[Round Robin] No specific route. Assigning new request to: ${target}`);
     }
 
     // حالا که هدف (target) مشخص شد، پروکسی را با آن هدف اجرا می‌کنیم.
@@ -67,10 +56,6 @@ app.use('/gradio_api', (req, res, next) => {
         proxyReqPathResolver: (proxyReq) => proxyReq.originalUrl,
         proxyErrorHandler: (err, proxyRes, next) => {
             console.error(`[Proxy Error] Could not connect to ${target}. Error: ${err.message}`);
-            // اگر خطایی رخ داد، session را از map پاک می‌کنیم تا دفعه بعد دوباره تلاش شود.
-            if (sessionHash) {
-                sessionToTargetMap.delete(sessionHash);
-            }
             proxyRes.status(503).send('The AI service is temporarily unavailable. Please try again.');
         }
     })(req, res, next);
@@ -83,6 +68,6 @@ app.get('*', (req, res) => {
 
 // سرور را اجرا می‌کند
 app.listen(PORT, () => {
-    console.log(`🚀 Alpha TTS server with STICKY SESSIONS is running on port ${PORT}`);
+    console.log(`🚀 Alpha TTS server with Intelligent Routing is running on port ${PORT}`);
     console.log(`Total Spaces in rotation: ${HF_TARGETS.length}`);
 });
