@@ -5,60 +5,60 @@ const path = require('path');
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// 1. لیست اسپیس‌های هدف برای منطق چرخشی (Round-Robin)
-// هر اسپیس جدیدی که می‌سازید، آدرس آن را به این لیست اضافه کنید.
-const HF_TARGETS = [
-    'hamed744-ttspro.hf.space',
-    'hamed744-ttspro2.hf.space',
-    'hamed744-ttspro3.hf.space'
-];
+// نقشه ای از کلیدهای ساده به آدرس کامل اسپیس ها
+// این کار باعث می شود کد سمت کاربر تمیزتر باشد
+const HF_TARGETS = {
+    'space1': 'hamed744-ttspro.hf.space',
+    'space2': 'hamed744-ttspro2.hf.space',
+    'space3': 'hamed744-ttspro3.hf.space'
+};
 
-// یک شمارنده برای اینکه بدانیم نوبت کدام اسپیس است
-let currentTargetIndex = 0;
-
-
-// Serve static files from the 'public' directory
+// سرویس دهی فایل های استاتیک مثل index.html
 app.use(express.static(path.join(__dirname, 'public')));
 
-
-// 2. پراکسی کردن درخواست‌ها با منطق چرخشی
-// به جای یک آدرس ثابت، یک تابع به پراکسی می‌دهیم که هر بار یک آدرس را از لیست بالا انتخاب می‌کند.
-app.use('/gradio_api', proxy(
+// *** بخش اصلی تغییرات اینجاست ***
+// ما یک پارامتر داینامیک به نام targetKey به مسیر اضافه می کنیم
+// مثلا: /space1/gradio_api/... یا /space2/gradio_api/...
+app.use('/:targetKey/gradio_api', proxy(
     (req) => {
-        // انتخاب هدف برای این درخواست
-        const selectedTarget = HF_TARGETS[currentTargetIndex];
-
-        // لاگ برای دیباگ کردن: نمایش می‌دهد که درخواست به کدام اسپیس ارسال شد
-        console.log(`[Round-Robin] Routing request to: ${selectedTarget}`);
-
-        // آماده‌سازی شمارنده برای درخواست بعدی
-        currentTargetIndex = (currentTargetIndex + 1) % HF_TARGETS.length;
-
-        // بازگرداندن آدرس انتخاب شده
-        return selectedTarget;
-    },
+        const targetKey = req.params.targetKey;
+        // آدرس اسپیس مورد نظر را از روی نقشه پیدا می کنیم
+        const targetHost = HF_TARGETS[targetKey];
+        
+        // اگر کلید معتبر بود، آدرس آن را برمیگردانیم
+        if (targetHost) {
+            console.log(`Proxying request for key '${targetKey}' to -> ${targetHost}`);
+            return targetHost;
+        }
+        
+        // در صورت ارسال کلید نامعتبر، به یک مقصد پیش فرض ارسال می کنیم
+        console.warn(`Invalid target key '${targetKey}'. Falling back to default.`);
+        return HF_TARGETS['space1']; 
+    }, 
     {
         https: true, // اتصال امن به Hugging Face
         proxyReqPathResolver: function (req) {
-            // این بخش بدون تغییر باقی می‌ماند و مسیر را به درستی ارسال می‌کند
-            return req.originalUrl;
+            // مسیر اصلی درخواست را بازسازی می کنیم
+            // مثال: /space1/gradio_api/queue/join  ->  /gradio_api/queue/join
+            const originalPath = req.originalUrl;
+            const targetKey = req.params.targetKey;
+            const resolvedPath = originalPath.replace(`/${targetKey}`, '');
+            return resolvedPath;
         },
         proxyErrorHandler: function (err, res, next) {
             console.error('Proxy error encountered:', err);
-            res.status(500).send('An error occurred while connecting to the AI service. Please try again later.');
+            res.status(502).send('Proxy Error: Could not connect to the AI service.');
         }
     }
 ));
 
-
-// Fallback for any other route - serve your index.html
+// برای هر مسیر دیگری، فایل اصلی برنامه را نمایش بده
 app.get('*', (req, res) => {
     res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
 
-
-// Start the server
+// اجرای سرور
 app.listen(PORT, () => {
-    console.log(`Round-robin proxy server listening on port ${PORT}`);
-    console.log(`Targeting ${HF_TARGETS.length} Hugging Face Spaces.`);
+    console.log(`Smart proxy server listening on port ${PORT}`);
+    console.log('Available targets:', HF_TARGETS);
 });
