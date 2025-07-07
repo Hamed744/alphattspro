@@ -1,79 +1,71 @@
 // server.js
-// این کد نهایی با منطق Sticky Sessions برای حل مشکل پخش نشدن صدا است.
+// این کد با حفظ Content-Type از پاسخ هاگینگ فیس، مشکل پخش را حل می‌کند.
 
 const express = require('express');
 const proxy = require('express-http-proxy');
 const path = require('path');
-const url = require('url');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// لیست آدرس‌های Hugging Face Space شما
 const HF_TARGETS = [
     'hamed744-ttspro.hf.space',
     'hamed744-ttspro2.hf.space',
     'hamed744-ttspro3.hf.space'
 ];
+let currentTargetIndex = 0;
 
-// یک تابع ساده برای تولید یک "هش" از یک رشته.
-// این به ما کمک می‌کند تا یک session_hash همیشه به یک اسپیس یکسان نگاشت شود.
-function simpleHashCode(str) {
-    let hash = 0;
-    for (let i = 0; i < str.length; i++) {
-        const char = str.charCodeAt(i);
-        hash = ((hash << 5) - hash) + char;
-        hash |= 0; // تبدیل به عدد صحیح ۳۲ بیتی
-    }
-    return Math.abs(hash);
-}
-
-// این بخش فایل‌های استاتیک مثل index.html را سرو می‌کند.
 app.use(express.static(path.join(__dirname, 'public')));
 
-// این بخش مهم، تمام درخواست‌های API را هوشمندانه مدیریت می‌کند.
 app.use('/gradio_api', (req, res, next) => {
-    let targetIndex;
+    const target = HF_TARGETS[currentTargetIndex];
+    currentTargetIndex = (currentTargetIndex + 1) % HF_TARGETS.length;
 
-    // تلاش می‌کنیم session_hash را از URL استخراج کنیم.
-    // URL ممکن است به این شکل باشد: /gradio_api/queue/data?session_hash=abcdef123
-    const parsedUrl = url.parse(req.originalUrl, true);
-    const sessionHash = parsedUrl.query.session_hash;
+    console.log(`[Load Balancer] Forwarding request to: ${target}`);
 
-    if (sessionHash) {
-        // اگر session_hash وجود داشت، از آن برای انتخاب یک اسپیس ثابت استفاده می‌کنیم.
-        // این تضمین می‌کند که تمام درخواست‌های یک جلسه (ساخت، دریافت داده، دریافت فایل) به یک اسپیس بروند.
-        targetIndex = simpleHashCode(sessionHash) % HF_TARGETS.length;
-        console.log(`[Sticky Session] Routing based on session_hash '${sessionHash}' to target index: ${targetIndex}`);
-    } else {
-        // اگر session_hash وجود نداشت (معمولاً برای اولین درخواست queue/join)،
-        // از یک روش چرخشی ساده استفاده می‌کنیم.
-        // Gradio در پاسخ به این درخواست، session_hash را ایجاد می‌کند.
-        targetIndex = Math.floor(Math.random() * HF_TARGETS.length);
-        console.log(`[New Session] Routing randomly to target index: ${targetIndex}`);
-    }
-
-    const target = HF_TARGETS[targetIndex];
-    console.log(`Forwarding request to: ${target}`);
-
-    // حالا که هدف مشخص شد، پروکسی را با آن هدف اجرا می‌کنیم.
     proxy(target, {
         https: true,
-        proxyReqPathResolver: (proxyReq) => proxyReq.originalUrl,
-        proxyErrorHandler: (err, proxyRes, next) => {
+        // *** اضافه کردن preserveHostHeader: true ***
+        // این کار باعث می‌شود هدر Host اصلی درخواست کاربر به جای هاست پروکسی به سرور هدف ارسال شود.
+        // گاهی اوقات سرویس‌های پشتیبان برای تعیین نوع محتوا به این هدر نیاز دارند.
+        preserveHostHeader: true, 
+        
+        proxyReqPathResolver: function (proxyReq) {
+            return proxyReq.originalUrl;
+        },
+        // *** اضافه کردن onProxyRes برای بررسی و تغییر هدرها ***
+        onProxyRes: function(proxyRes, req, res) {
+            // این تابع زمانی اجرا می‌شود که پاسخ از هاگینگ فیس دریافت شده اما هنوز به مرورگر کاربر ارسال نشده است.
+            // ما می‌توانیم هدرهای پاسخ را بررسی یا تغییر دهیم.
+            
+            // اگر Gradio یک Content-Type را ارسال کرده باشد، آن را حفظ می‌کنیم.
+            // این برای فایل‌های صوتی حیاتی است.
+            if (proxyRes.headers['content-type']) {
+                res.setHeader('Content-Type', proxyRes.headers['content-type']);
+            }
+            // اگر فایل صوتی باشد و Gradio از Content-Length استفاده کرده باشد، آن را نیز حفظ می‌کنیم.
+            if (proxyRes.headers['content-length']) {
+                res.setHeader('Content-Length', proxyRes.headers['content-length']);
+            }
+            // برخی هدرهای مربوط به کش (cache) را می‌توان اضافه کرد تا مرورگر بهتر کار کند.
+            // res.setHeader('Cache-Control', 'public, max-age=31536000'); // مثال: کش برای 1 سال
+            // res.setHeader('Accept-Ranges', 'bytes'); // مهم برای پخش کننده‌های صوتی که قابلیت seek دارند.
+
+            console.log(`[Proxy Response] Status: ${proxyRes.statusCode}, Content-Type: ${proxyRes.headers['content-type'] || 'N/A'}`);
+            // console.log("All response headers:", proxyRes.headers); // برای دیباگ کاملتر
+        },
+        proxyErrorHandler: function (err, proxyRes, next) {
             console.error(`[Proxy Error] Could not connect to ${target}. Error: ${err.message}`);
-            proxyRes.status(503).send('The AI service is temporarily unavailable. Please try again.');
+            res.status(503).send('The AI service is temporarily unavailable. Please try again.');
         }
     })(req, res, next);
 });
 
-// این بخش اطمینان می‌دهد که همه مسیرهای دیگر به صفحه اصلی شما هدایت می‌شوند.
 app.get('*', (req, res) => {
     res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
 
-// سرور را اجرا می‌کند
 app.listen(PORT, () => {
-    console.log(`🚀 Alpha TTS server with STICKY SESSIONS is running on port ${PORT}`);
-    console.log(`Total Spaces configured: ${HF_TARGETS.length}`);
+    console.log(`🚀 Alpha TTS server with Load Balancing is running on port ${PORT}`);
+    console.log(`Total Spaces in rotation: ${HF_TARGETS.length}`);
 });
