@@ -4,16 +4,20 @@ import os
 import re
 import struct
 import time
-import uuid  # اضافه شد: برای ایجاد شناسه‌های منحصر به فرد
-import shutil # اضافه شد: برای پاکسازی دایرکتوری‌ها
-import json   # اضافه شد: برای دریافت ورودی و ارسال خروجی JSON
-import sys    # اضافه شد: برای خواندن از stdin و نوشتن در stdout
+import uuid
+import shutil
+import json
+import sys
 import logging
 import threading
 
 # Import the Google Generative AI library components
-import google.generativeai as genai
-from google.generativeai import types # Ensure types is imported from genai
+try:
+    import google.generativeai as genai
+    from google.generativeai import types
+    GOOGLE_API_AVAILABLE = True
+except ImportError:
+    GOOGLE_API_AVAILABLE = False
 
 try:
     from pydub import AudioSegment
@@ -22,26 +26,39 @@ except ImportError:
     PYDUB_AVAILABLE = False
 
 # --- START: پیکربندی لاگینگ ---
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s', datefmt='%Y-%m-%d %H:%M:%S')
+# لاگ‌ها را طوری تنظیم می‌کنیم که در محیط Render به درستی نمایش داده شوند.
+logging.basicConfig(
+    level=logging.INFO,
+    format='[%(asctime)s] - [Python Worker] - %(levelname)s - %(message)s',
+    datefmt='%Y-%m-%d %H:%M:%S',
+    stream=sys.stdout  # لاگ‌ها را به خروجی استاندارد بفرست تا در لاگ‌های Render دیده شوند
+)
 # --- END: پیکربندی لاگینگ ---
 
-# --- START: منطق مدیریت API Key (بدون تغییر) ---
+# --- START: منطق مدیریت API Key ---
 ALL_API_KEYS: list[str] = []
 NEXT_KEY_INDEX: int = 0
 KEY_LOCK: threading.Lock = threading.Lock()
 
 def _init_api_keys():
+    """
+    کلیدهای API را از یک متغیر محیطی واحد شناسایی و لاگ می‌کند.
+    """
     global ALL_API_KEYS
     all_keys_string = os.environ.get("ALL_GEMINI_API_KEYS")
     if all_keys_string:
         ALL_API_KEYS = [key.strip() for key in all_keys_string.split(',') if key.strip()]
-    logging.info(f"✅ تعداد {len(ALL_API_KEYS)} کلید API جیمینای بارگذاری شد.")
-    if not ALL_API_KEYS:
-        logging.warning("⛔️ خطای حیاتی: هیچ Secret با نام ALL_GEMINI_API_KEYS یافت نشد!")
-
-_init_api_keys()
+    
+    # لاگ دقیق تعداد کلیدها
+    if ALL_API_KEYS:
+        logging.info(f"✅ شناسایی و بارگذاری موفق {len(ALL_API_KEYS)} کلید API جیمینای.")
+    else:
+        logging.warning("⛔️ خطای حیاتی: هیچ کلید API در متغیر محیطی 'ALL_GEMINI_API_KEYS' یافت نشد!")
 
 def get_next_api_key():
+    """
+    کلید API بعدی را به صورت چرخشی برمی‌گرداند.
+    """
     global NEXT_KEY_INDEX, ALL_API_KEYS, KEY_LOCK
     with KEY_LOCK:
         if not ALL_API_KEYS:
@@ -58,6 +75,7 @@ DEFAULT_MAX_CHUNK_SIZE = 3800
 DEFAULT_SLEEP_BETWEEN_REQUESTS = 8
 
 # --- توابع کمکی (Helper Functions) ---
+# این توابع بدون تغییر باقی می‌مانند
 def save_binary_file(file_name, data):
     try:
         with open(file_name, "wb") as f: f.write(data)
@@ -105,41 +123,49 @@ def smart_text_split(text, max_size=3800):
     return final_chunks
 
 def merge_audio_files_func(file_paths, output_path):
-    if not PYDUB_AVAILABLE: logging.warning("⚠️ pydub برای ادغام در دسترس نیست."); return False
+    if not PYDUB_AVAILABLE:
+        logging.warning("⚠️ کتابخانه pydub برای ادغام در دسترس نیست.")
+        return False
     try:
         combined = AudioSegment.empty()
         for i, fp in enumerate(file_paths):
-            if os.path.exists(fp): combined += AudioSegment.from_file(fp) + (AudioSegment.silent(duration=150) if i < len(file_paths) - 1 else AudioSegment.empty())
-            else: logging.warning(f"⚠️ فایل برای ادغام پیدا نشد: {fp}")
+            if os.path.exists(fp):
+                combined += AudioSegment.from_file(fp) + (AudioSegment.silent(duration=150) if i < len(file_paths) - 1 else AudioSegment.empty())
+            else:
+                logging.warning(f"⚠️ فایل برای ادغام پیدا نشد: {fp}")
         combined.export(output_path, format="wav")
         return True
-    except Exception as e: logging.error(f"❌ خطا در ادغام فایل‌های صوتی: {e}"); return False
+    except Exception as e:
+        logging.error(f"❌ خطا در ادغام فایل‌های صوتی: {e}")
+        return False
 
-# --- START: منطق تولید صدا با قابلیت تلاش مجدد ---
+# --- START: منطق تولید صدا با لاگ‌های دقیق ---
 def generate_audio_chunk_with_retry(chunk_text, prompt_text, voice, temp, session_id):
     """
-    یک قطعه صوتی را با قابلیت تلاش مجدد با کلیدهای مختلف API تولید می‌کند.
+    یک قطعه صوتی را با قابلیت تلاش مجدد و لاگ‌های دقیق تولید می‌کند.
     """
     if not ALL_API_KEYS:
         logging.error(f"[{session_id}] ❌ هیچ کلید API برای تولید صدا در دسترس نیست.")
-        return None
+        return None, "هیچ کلید API برای پردازش در دسترس نیست."
 
-    for _ in range(len(ALL_API_KEYS)):
+    last_error = "خطای نامشخص"
+
+    for i in range(len(ALL_API_KEYS)):
         selected_api_key, key_idx_display = get_next_api_key()
         if not selected_api_key:
             logging.warning(f"[{session_id}] ⚠️ get_next_api_key هیچ کلیدی برنگرداند.")
-            break
+            continue
+        
+        # لاگ دقیق برای هر تلاش
         logging.info(f"[{session_id}] ⚙️ تلاش برای تولید قطعه با کلید API شماره {key_idx_display} (...{selected_api_key[-4:]})")
+        
         try:
             genai.configure(api_key=selected_api_key)
             final_text = f'"{prompt_text}"\n{chunk_text}' if prompt_text and prompt_text.strip() else chunk_text
             
-            # این همان بلاک کدی است که نیاز به اصلاح دارد:
-            config = types.GenerationConfig( # Changed from types.GenerateContentConfig to types.GenerationConfig
+            config = types.GenerationConfig(
                 temperature=temp,
                 response_mime_type="audio/wav",
-                # speech_config را مستقیما به GenerativeModel.generate_content پاس می‌دهیم
-                # و باید داخل SpeechConfig باشد.
                 speech_config=types.SpeechConfig(
                     voice_config=types.VoiceConfig(
                         prebuilt_voice_config=types.PrebuiltVoiceConfig(voice_name=voice)
@@ -149,53 +175,73 @@ def generate_audio_chunk_with_retry(chunk_text, prompt_text, voice, temp, sessio
 
             response = genai.GenerativeModel(model_name=FIXED_MODEL_NAME).generate_content(
                 contents=[{"role": "user", "parts": [{"text": final_text}]}],
-                generation_config=config # پرانتز بسته اینجا اضافه شد
+                generation_config=config
             )
             
             if response.candidates and response.candidates[0].content and response.candidates[0].content.parts and response.candidates[0].content.parts[0].inline_data:
+                # لاگ موفقیت
                 logging.info(f"[{session_id}] ✅ قطعه با موفقیت توسط کلید شماره {key_idx_display} تولید شد.")
-                return response.candidates[0].content.parts[0].inline_data
+                return response.candidates[0].content.parts[0].inline_data, None
             else:
-                logging.warning(f"[{session_id}] ⚠️ پاسخ API برای قطعه با کلید شماره {key_idx_display} بدون داده صوتی بود.")
+                # لاگ پاسخ نامعتبر
+                logging.warning(f"[{session_id}] ⚠️ پاسخ API برای قطعه با کلید شماره {key_idx_display} بدون داده صوتی بود. پاسخ: {response}")
+                last_error = f"پاسخ API با کلید شماره {key_idx_display} بدون داده صوتی بود."
+        
         except Exception as e:
-            logging.error(f"[{session_id}] ❌ خطا در تولید قطعه با کلید شماره {key_idx_display}: {e}.")
+            # لاگ دقیق خطا
+            logging.error(f"[{session_id}] ❌ خطا در تولید قطعه با کلید شماره {key_idx_display}. خطای API: {e}.")
+            last_error = str(e)
+            # اگر خطا مربوط به کلید نامعتبر باشد، می‌توانیم سریعتر به کلید بعدی برویم
+            if "API key not valid" in last_error:
+                continue
+            
     logging.error(f"[{session_id}] ❌ تمام کلیدهای API امتحان شدند اما هیچ‌کدام موفق به تولید قطعه نشدند.")
-    return None
+    return None, last_error
 
+# --- START: تابع اصلی اجرا ---
 def main():
-    # خواندن ورودی JSON از stdin
-    input_data = json.loads(sys.stdin.read())
+    if not GOOGLE_API_AVAILABLE:
+        logging.critical("کتابخانه google.generativeai در دسترس نیست. لطفاً وابستگی‌ها را بررسی کنید.")
+        sys.stdout.write(json.dumps({"success": False, "error": "خطای داخلی سرور: کتابخانه اصلی TTS یافت نشد."}))
+        sys.exit(1)
+
+    # بارگذاری کلیدها در ابتدای اجرا
+    _init_api_keys()
+
+    try:
+        input_data = json.loads(sys.stdin.read())
+    except json.JSONDecodeError:
+        logging.error("خطا در پارس کردن ورودی JSON از stdin.")
+        sys.stdout.write(json.dumps({"success": False, "error": "ورودی نامعتبر به سرویس پایتون ارسال شد."}))
+        sys.exit(1)
+
     text_input = input_data.get("text")
     prompt_input = input_data.get("prompt")
     selected_voice = input_data.get("speaker")
     temperature_val = input_data.get("temperature")
-    session_id = input_data.get("session_id", str(uuid.uuid4())[:8]) # اگر session_id از Node.js نیامد، جدید بساز
+    session_id = input_data.get("session_id", str(uuid.uuid4())[:8])
 
-    logging.info(f"[{session_id}] 🚀 شروع فرآیند تولید صدا.")
+    logging.info(f"[{session_id}] 🚀 درخواست جدید دریافت شد. پارامترها: گوینده={selected_voice}, دما={temperature_val}")
     
     temp_dir = f"temp_{session_id}"
     os.makedirs(temp_dir, exist_ok=True)
     
     output_base_name = os.path.join(temp_dir, f"audio_session_{session_id}")
 
-    if not text_input or not text_input.strip():
-        logging.error(f"[{session_id}] ❌ متن ورودی خالی است.")
-        shutil.rmtree(temp_dir)
-        sys.stdout.write(json.dumps({"success": False, "error": "متن ورودی نمی‌تواند خالی باشد."}))
-        sys.exit(1)
-
-    text_chunks = smart_text_split(text_input, DEFAULT_MAX_CHUNK_SIZE)
-    if not text_chunks:
-        logging.error(f"[{session_id}] ❌ متن قابل پردازش به قطعات کوچکتر نیست.")
-        shutil.rmtree(temp_dir)
-        sys.stdout.write(json.dumps({"success": False, "error": "متن قابل پردازش به قطعات کوچکتر نیست."}))
-        sys.exit(1)
-
-    generated_files = []
     try:
+        if not text_input or not text_input.strip():
+            raise ValueError("متن ورودی نمی‌تواند خالی باشد.")
+
+        text_chunks = smart_text_split(text_input, DEFAULT_MAX_CHUNK_SIZE)
+        if not text_chunks:
+            raise ValueError("متن قابل پردازش به قطعات کوچکتر نیست.")
+
+        generated_files = []
         for i, chunk in enumerate(text_chunks):
             logging.info(f"[{session_id}] 🔊 پردازش قطعه {i+1}/{len(text_chunks)}...")
-            inline_data = generate_audio_chunk_with_retry(chunk, prompt_input, selected_voice, temperature_val, session_id)
+            
+            inline_data, error_message = generate_audio_chunk_with_retry(chunk, prompt_input, selected_voice, temperature_val, session_id)
+            
             if inline_data:
                 data_buffer = inline_data.data
                 ext = ".wav" 
@@ -205,37 +251,28 @@ def main():
                 if fpath: 
                     generated_files.append(fpath)
                 else:
-                    logging.error(f"[{session_id}] ❌ موفق به ذخیره فایل برای قطعه {i+1} نشدیم.")
-                    raise Exception(f"خطا در ذخیره فایل صوتی برای قطعه {i+1}.") 
+                    raise IOError(f"موفق به ذخیره فایل برای قطعه {i+1} نشدیم.") 
             else:
-                logging.error(f"[{session_id}] 🛑 فرآیند متوقف شد زیرا تولید قطعه {i+1} با تمام کلیدهای موجود ناموفق بود.")
-                raise Exception(f"تولید قطعه {i+1} ناموفق بود. سرویس در دسترس نیست یا کلیدهای API مشکل دارند.")
+                raise Exception(f"تولید قطعه {i+1} ناموفق بود. آخرین خطای ثبت شده: {error_message}")
             
             if i < len(text_chunks) - 1 and len(text_chunks) > 1: 
                 time.sleep(DEFAULT_SLEEP_BETWEEN_REQUESTS)
 
         if not generated_files:
-            logging.error(f"[{session_id}] ❌ هیچ فایل صوتی تولید نشد.")
-            sys.stdout.write(json.dumps({"success": False, "error": "هیچ فایل صوتی تولید نشد."}))
-            sys.exit(1)
+            raise Exception("هیچ فایل صوتی تولید نشد.")
         
         final_output_path = f"output_{session_id}.wav" 
 
         if len(generated_files) > 1:
-            if PYDUB_AVAILABLE:
-                if not merge_audio_files_func(generated_files, final_output_path):
-                    logging.error(f"[{session_id}] ❌ ادغام فایل‌ها ناموفق بود. بازگشت به اولین قطعه.")
-                    shutil.copy(generated_files[0], final_output_path)
-            else: 
-                logging.warning(f"[{session_id}] ⚠️ pydub در دسترس نیست. اولین قطعه صوتی ارائه می‌شود.")
+            logging.info(f"[{session_id}] 🖇️ در حال ادغام {len(generated_files)} قطعه صوتی...")
+            if not merge_audio_files_func(generated_files, final_output_path):
+                logging.warning(f"[{session_id}] ❌ ادغام فایل‌ها ناموفق بود. فقط اولین قطعه بازگردانده می‌شود.")
                 shutil.copy(generated_files[0], final_output_path)
-        elif len(generated_files) == 1:
+        else:
             shutil.copy(generated_files[0], final_output_path)
         
         if not os.path.exists(final_output_path):
-            logging.error(f"[{session_id}] ❓ فایل نهایی پس از پردازش پیدا نشد.")
-            sys.stdout.write(json.dumps({"success": False, "error": "فایل نهایی صوتی تولید نشد."}))
-            sys.exit(1)
+            raise IOError("فایل نهایی پس از پردازش پیدا نشد.")
             
         logging.info(f"[{session_id}] ✅ فایل صوتی نهایی با موفقیت تولید شد: {final_output_path}")
         sys.stdout.write(json.dumps({"success": True, "audio_file_path": final_output_path}))
@@ -245,11 +282,9 @@ def main():
         sys.stdout.write(json.dumps({"success": False, "error": str(e)}))
         sys.exit(1)
     finally:
-        # پاکسازی دایرکتوری موقت و فایل‌های میانی
         if os.path.exists(temp_dir):
             shutil.rmtree(temp_dir)
             logging.info(f"[{session_id}] 🧹 دایرکتوری موقت '{temp_dir}' پاکسازی شد.")
 
 if __name__ == "__main__":
-    _init_api_keys()
     main()
