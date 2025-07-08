@@ -6,6 +6,7 @@ import uuid
 import shutil
 import logging
 import threading
+import mimetypes  # <--- این خط اضافه شده است
 from fastapi import FastAPI, HTTPException, Body, Request
 from fastapi.responses import FileResponse, HTMLResponse
 from fastapi.staticfiles import StaticFiles
@@ -191,7 +192,9 @@ def core_generate_audio(text_input, prompt_input, selected_voice, temperature_va
 app = FastAPI(title="Alpha TTS API")
 
 # این بخش فایل‌های استاتیک شما (index.html, css, js) را سرو می‌کند
-app.mount("/static", StaticFiles(directory="public"), name="static")
+# تغییر: نام دایرکتوری را به "public" تغییر دادیم تا با ساختار فایل شما مطابقت داشته باشد.
+app.mount("/static", StaticFiles(directory="public", html=True), name="static")
+
 
 # مدل ورودی برای API
 class TTSRequest(BaseModel):
@@ -227,6 +230,7 @@ async def generate_audio_endpoint(request: TTSRequest):
 # این بخش صفحه اصلی (index.html) را در روت اصلی نمایش می‌دهد
 @app.get("/", response_class=HTMLResponse)
 async def read_root():
+    # تغییر: مسیر فایل را به "public/index.html" تغییر دادیم
     with open("public/index.html", "r", encoding="utf-8") as f:
         html_content = f.read()
     return HTMLResponse(content=html_content)
