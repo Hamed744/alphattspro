@@ -229,7 +229,9 @@ async def generate_audio_endpoint(request: TTSRequest):
 
 # این بخش صفحه اصلی (index.html) را در روت اصلی نمایش می‌دهد
 @app.get("/", response_class=HTMLResponse)
+@app.head("/", response_class=HTMLResponse) # <-- این خط را اضافه کنید
 async def read_root():
+    # ... (محتوای تابع تغییری نمی‌کند)
     # تغییر: مسیر فایل را به "public/index.html" تغییر دادیم
     with open("public/index.html", "r", encoding="utf-8") as f:
         html_content = f.read()
