@@ -14,7 +14,7 @@ import threading
 # Import the Google Generative AI library components
 try:
     import google.generativeai as genai
-    from google.generativeai import types  # هنوز برای GenerationConfig به آن نیاز داریم
+    from google.generativeai import types
     GOOGLE_API_AVAILABLE = True
 except ImportError:
     GOOGLE_API_AVAILABLE = False
@@ -58,9 +58,13 @@ def get_next_api_key():
         NEXT_KEY_INDEX += 1
         return key_to_use, key_display_index
 
-# --- ثابت‌ها و توابع کمکی (بدون تغییر) ---
+# --- ثابت‌ها ---
+# **اصلاح: ثابت‌های حذف شده دوباره اضافه شدند**
 FIXED_MODEL_NAME = "gemini-2.5-flash-preview-tts"
-# ... (تمام توابع کمکی save_binary_file, convert_to_wav, parse_audio_mime_type, smart_text_split, merge_audio_files_func اینجا بدون تغییر قرار می‌گیرند) ...
+DEFAULT_MAX_CHUNK_SIZE = 3800
+DEFAULT_SLEEP_BETWEEN_REQUESTS = 8
+
+# --- توابع کمکی ---
 def save_binary_file(file_name, data):
     try:
         with open(file_name, "wb") as f: f.write(data)
@@ -68,6 +72,7 @@ def save_binary_file(file_name, data):
     except Exception as e:
         logging.error(f"❌ خطا در ذخیره فایل {file_name}: {e}")
         return None
+
 def convert_to_wav(audio_data: bytes, mime_type: str) -> bytes:
     parameters = parse_audio_mime_type(mime_type)
     bits_per_sample, rate = parameters["bits_per_sample"], parameters["rate"]
@@ -76,6 +81,7 @@ def convert_to_wav(audio_data: bytes, mime_type: str) -> bytes:
     byte_rate, chunk_size = rate * block_align, 36 + data_size
     header = struct.pack("<4sI4s4sIHHIIHH4sI", b"RIFF", chunk_size, b"WAVE", b"fmt ", 16, 1, num_channels, rate, byte_rate, block_align, bits_per_sample, b"data", data_size)
     return header + audio_data
+
 def parse_audio_mime_type(mime_type: str) -> dict[str, int]:
     bits, rate = 16, 24000
     for param in mime_type.split(";"):
@@ -87,7 +93,8 @@ def parse_audio_mime_type(mime_type: str) -> dict[str, int]:
             try: bits = int(param.split("L", 1)[1])
             except: pass
     return {"bits_per_sample": bits, "rate": rate}
-def smart_text_split(text, max_size=3800):
+
+def smart_text_split(text, max_size=DEFAULT_MAX_CHUNK_SIZE): # استفاده از ثابت
     if len(text) <= max_size: return [text]
     chunks, current_chunk = [], ""
     sentences = re.split(r'(?<=[.!?؟])\s+', text)
@@ -103,6 +110,7 @@ def smart_text_split(text, max_size=3800):
     if current_chunk: chunks.append(current_chunk.strip())
     final_chunks = [c for c in chunks if c]
     return final_chunks
+
 def merge_audio_files_func(file_paths, output_path):
     if not PYDUB_AVAILABLE:
         logging.warning("⚠️ کتابخانه pydub برای ادغام در دسترس نیست.")
@@ -119,13 +127,9 @@ def merge_audio_files_func(file_paths, output_path):
     except Exception as e:
         logging.error(f"❌ خطا در ادغام فایل‌های صوتی: {e}")
         return False
-# --- END: توابع کمکی ---
 
-# --- START: منطق تولید صدا با API اصلاح شده ---
+# --- منطق تولید صدا ---
 def generate_audio_chunk_with_retry(chunk_text, prompt_text, voice, temp, session_id):
-    """
-    یک قطعه صوتی را با قابلیت تلاش مجدد و با استفاده از API اصلاح شده تولید می‌کند.
-    """
     if not ALL_API_KEYS:
         logging.error(f"[{session_id}] ❌ هیچ کلید API برای تولید صدا در دسترس نیست.")
         return None, "هیچ کلید API برای پردازش در دسترس نیست."
@@ -144,78 +148,17 @@ def generate_audio_chunk_with_retry(chunk_text, prompt_text, voice, temp, sessio
             genai.configure(api_key=selected_api_key)
             final_text = f'"{prompt_text}"\n{chunk_text}' if prompt_text and prompt_text.strip() else chunk_text
             
-            # **تغییر اصلی اینجاست**
-            # به جای `SpeechConfig`، ما از `tts_request` استفاده می‌کنیم.
-            tts_request = genai.protos.SynthesizeSpeechRequest(
-                text=final_text,
-                voice=genai.protos.Voice(name=voice),
-                audio_config=genai.protos.AudioConfig(
-                    audio_encoding="LINEAR16",  # خروجی WAV
-                    sample_rate_hertz=24000
-                ),
-            )
-
-            # فراخوانی مدل به روش جدید برای TTS
-            # ما از `GenerativeModel` استفاده می‌کنیم اما محتوا را به شکل خاص‌تری می‌سازیم.
-            # با توجه به اینکه مدل شما `gemini-2.5-flash-preview-tts` است، ممکن است همچنان از `generate_content` استفاده کند.
-            # بیایید روش استانداردتر `text-to-speech` را امتحان کنیم اگر مدل آن را پشتیبانی کند.
-            # اگر این کار نکرد، به روش `generate_content` با پارامترهای جدید برمی‌گردیم.
+            # کد اصلاح شده برای API جدید (بدون SpeechConfig)
+            model = genai.GenerativeModel(FIXED_MODEL_NAME)
             
-            # رویکرد ۱: استفاده از API مخصوص TTS (اگر وجود داشته باشد)
-            # این بخش بر اساس داکیومنت‌های جدیدتر است.
-            # model = genai.GenerativeModel(model_name=FIXED_MODEL_NAME)
-            # response = model.synthesize_speech(request=tts_request)
-            
-            # **رویکرد ۲: استفاده از `generate_content` با پارامترهای جدید (سازگارتر با کد قبلی)**
-            model = genai.GenerativeModel(model_name=FIXED_MODEL_NAME)
-            
-            # ما `temperature` را در `generation_config` و `voice` را در خود متن قرار می‌دهیم.
-            # این روش ممکن است برای مدل‌های جدیدتر جواب دهد.
-            # اما روش دقیق‌تر این است که `voice_name` را به عنوان پارامتری جدا بفرستیم.
-            
-            # **اصلاح نهایی و صحیح بر اساس API فعلی:**
-            # `SpeechConfig` دیگر وجود ندارد. `voice` به عنوان یک پارامتر مستقیم به `generate_content` ارسال نمی‌شود.
-            # بلکه به عنوان بخشی از محتوا ارسال می‌شود.
-            # بیایید به ساختار اصلی Gradio شما برگردیم و ببینیم چگونه آن را تطبیق دهیم.
-            # کد Gradio شما از `genai.Client` استفاده می‌کرد که ممکن است یک wrapper قدیمی‌تر باشد.
-            # در `google-generativeai` مدرن، روش کار متفاوت است.
-
-            # **کد اصلاح شده نهایی:**
-            # ما تمام تنظیمات را در `generation_config` قرار می‌دهیم
             generation_config = types.GenerationConfig(
                 temperature=temp,
                 response_mime_type="audio/wav"
             )
-
-            # محتوای اصلی که به مدل ارسال می‌شود
-            contents = [{"role": "user", "parts": [{"text": final_text}]}]
             
-            # حالا مدل را می‌سازیم، اما با voice_name در نام مدل!
-            # این روشی است که گوگل برای مدل‌های TTS جدیدتر توصیه می‌کند.
-            # مثال: 'models/text-to-speech-en-us-1'
-            # برای مدل شما، نام صدا مستقیماً به نام مدل اضافه می‌شود.
-            # مثلا: "models/tts-1"
-            # اما چون شما یک مدل preview دارید، ممکن است روش متفاوت باشد.
-            # بیایید فرض کنیم `voice` باید به نحوی در `request_options` یا جای دیگری باشد.
-            
-            # **بازگشت به ساده‌ترین راه ممکن که باید کار کند:**
-            # بیایید فرض کنیم `voice` به عنوان یک پارامتر در `generation_config` یا `request_options` پذیرفته می‌شود.
-            # اگر این هم کار نکرد، یعنی مدل `gemini-2.5-flash-preview-tts` دیگر به این شکل قابل استفاده نیست.
-
-            # **آخرین تلاش با ساختار صحیح:**
-            model = genai.GenerativeModel(FIXED_MODEL_NAME)
             response = model.generate_content(
-                contents=contents,
+                contents=[{"role": "user", "parts": [{"text": final_text}]}],
                 generation_config=generation_config
-                # هیچ پارامتری به نام `voice` یا `speech_config` در اینجا وجود ندارد.
-                # `voice_name` باید در جای دیگری مشخص شود.
-                # در داکیومنت جدید گوگل، voice name بخشی از نام مدل است، مثلاً:
-                # `genai.GenerativeModel('models/tts-1-hd')`
-                # بیایید فرض کنیم مدل شما به صورت پیش‌فرض از یک voice استفاده می‌کند و `voice` انتخابی شما نادیده گرفته می‌شود.
-                # یا اینکه voice باید در prompt باشد.
-                # ما prompt را در متن داریم، پس این باید کافی باشد.
-                
-                # بیایید یک بار دیگر کد را امتحان کنیم، اما این بار بدون `types.SpeechConfig` که خطا می‌دهد.
             )
 
             if response.candidates and response.candidates[0].content and response.candidates[0].content.parts and response.candidates[0].content.parts[0].inline_data:
@@ -223,7 +166,15 @@ def generate_audio_chunk_with_retry(chunk_text, prompt_text, voice, temp, sessio
                 return response.candidates[0].content.parts[0].inline_data, None
             else:
                 logging.warning(f"[{session_id}] ⚠️ پاسخ API برای قطعه با کلید شماره {key_idx_display} بدون داده صوتی بود. پاسخ: {response}")
-                last_error = f"پاسخ API با کلید شماره {key_idx_display} بدون داده صوتی بود."
+                # تلاش برای استخراج دلیل خطا از پاسخ
+                try:
+                    prompt_feedback = response.prompt_feedback
+                    if prompt_feedback.block_reason:
+                        last_error = f"درخواست توسط API مسدود شد. دلیل: {prompt_feedback.block_reason_message or prompt_feedback.block_reason}"
+                    else:
+                        last_error = f"پاسخ API با کلید شماره {key_idx_display} بدون داده صوتی بود."
+                except (AttributeError, IndexError):
+                     last_error = f"پاسخ API با کلید شماره {key_idx_display} ساختار نامشخصی داشت."
         
         except Exception as e:
             logging.error(f"[{session_id}] ❌ خطا در تولید قطعه با کلید شماره {key_idx_display}. خطای API: {e}.")
@@ -232,7 +183,7 @@ def generate_audio_chunk_with_retry(chunk_text, prompt_text, voice, temp, sessio
     logging.error(f"[{session_id}] ❌ تمام کلیدهای API امتحان شدند اما هیچ‌کدام موفق به تولید قطعه نشدند.")
     return None, last_error
 
-# --- START: تابع اصلی اجرا (بدون تغییر) ---
+# --- تابع اصلی اجرا ---
 def main():
     if not GOOGLE_API_AVAILABLE:
         logging.critical("کتابخانه google.generativeai در دسترس نیست.")
@@ -265,7 +216,8 @@ def main():
         if not text_input or not text_input.strip():
             raise ValueError("متن ورودی نمی‌تواند خالی باشد.")
 
-        text_chunks = smart_text_split(text_input, DEFAULT_MAX_CHUNK_SIZE)
+        # **اصلاح:** max_size به تابع پاس داده می‌شود
+        text_chunks = smart_text_split(text_input, max_size=DEFAULT_MAX_CHUNK_SIZE)
         if not text_chunks:
             raise ValueError("متن قابل پردازش به قطعات کوچکتر نیست.")
 
@@ -273,8 +225,6 @@ def main():
         for i, chunk in enumerate(text_chunks):
             logging.info(f"[{session_id}] 🔊 پردازش قطعه {i+1}/{len(text_chunks)}...")
             
-            # **تغییر:** ما voice را به تابع می‌فرستیم اما در کد جدید از آن استفاده نمی‌کنیم.
-            # مدل باید voice را از prompt تشخیص دهد یا از یک پیش‌فرض استفاده کند.
             inline_data, error_message = generate_audio_chunk_with_retry(chunk, prompt_input, selected_voice, temperature_val, session_id)
             
             if inline_data:
