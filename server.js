@@ -1,7 +1,7 @@
 const express = require('express');
 const path = require('path');
-const { spawn } = require('child_process'); // برای اجرای اسکریپت پایتون
-const fs = require('fs'); // برای مدیریت فایل‌ها
+const { spawn } = require('child_process');
+const fs = require('fs');
 const { v4: uuidv4 } = require('uuid'); // برای تولید شناسه‌های منحصر به فرد
 
 const app = express();
@@ -13,7 +13,11 @@ app.use(express.static(path.join(__dirname, 'public')));
 // Middleware برای پردازش بدنه درخواست‌های JSON
 app.use(express.json());
 
-// API Endpoint جدید برای تبدیل متن به صدا
+// **جدید: مسیر مفسر پایتون در محیط مجازی**
+// فرض می‌کنیم محیط مجازی 'venv' در ریشه پروژه شما ایجاد شده است.
+// و مفسر پایتون در venv/bin/python3 قرار دارد.
+const PYTHON_EXECUTABLE = path.join(__dirname, 'venv', 'bin', 'python3');
+
 app.post('/generate-audio', (req, res) => {
     const { text, prompt, speaker, temperature } = req.body;
 
@@ -42,33 +46,30 @@ app.post('/generate-audio', (req, res) => {
     let pythonOutput = '';
     let pythonError = '';
 
-    const pythonProcess = spawn('python3', [pythonScriptPath], {
+    // **تغییر: استفاده از مسیر دقیق مفسر پایتون در محیط مجازی**
+    const pythonProcess = spawn(PYTHON_EXECUTABLE, [pythonScriptPath], {
         stdio: ['pipe', 'pipe', 'pipe'] // stdin, stdout, stderr
     });
 
-    // نوشتن داده‌ها به stdin اسکریپت پایتون
+    // ... بقیه کدهای server.js شما (همانند قبل) ...
     pythonProcess.stdin.write(JSON.stringify(inputData));
-    pythonProcess.stdin.end(); // بستن stdin پس از ارسال داده
+    pythonProcess.stdin.end();
 
-    // گوش دادن به stdout اسکریپت پایتون
     pythonProcess.stdout.on('data', (data) => {
         pythonOutput += data.toString();
     });
 
-    // گوش دادن به stderr اسکریپت پایتون
     pythonProcess.stderr.on('data', (data) => {
         pythonError += data.toString();
         console.error(`[${sessionId}] خطای Python stderr: ${data.toString()}`);
     });
 
-    // گوش دادن به رویداد بسته شدن اسکریپت پایتون
     pythonProcess.on('close', (code) => {
         console.log(`[${sessionId}] اسکریپت پایتون با کد خروج ${code} بسته شد.`);
 
         if (code !== 0) {
             console.error(`[${sessionId}] خطای اسکریپت پایتون:`, pythonError);
             try {
-                // تلاش برای پارس کردن خروجی خطا از پایتون اگر JSON باشد
                 const errorParsed = JSON.parse(pythonOutput);
                 return res.status(500).json({ error: errorParsed.error || 'خطای ناشناخته در سرویس تبدیل متن به صدا.' });
             } catch (parseError) {
@@ -82,13 +83,11 @@ app.post('/generate-audio', (req, res) => {
                 const audioFilePath = path.join(__dirname, result.audio_file_path);
                 console.log(`[${sessionId}] ✅ فایل صوتی تولید شده: ${audioFilePath}`);
 
-                // ارسال فایل صوتی به کلاینت
                 res.sendFile(audioFilePath, (err) => {
                     if (err) {
                         console.error(`[${sessionId}] ❌ خطا در ارسال فایل صوتی:`, err);
                         res.status(500).send('خطا در ارسال فایل صوتی.');
                     }
-                    // پس از ارسال فایل، آن را پاک کنید
                     fs.unlink(audioFilePath, (unlinkErr) => {
                         if (unlinkErr) console.error(`[${sessionId}] 🧹 خطا در پاک کردن فایل موقت:`, unlinkErr);
                         else console.log(`[${sessionId}] 🧹 فایل موقت پاک شد: ${audioFilePath}`);
