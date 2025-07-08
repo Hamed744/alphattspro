@@ -7,7 +7,7 @@ import shutil
 import logging
 import threading
 import mimetypes
-from fastapi import FastAPI, HTTPException, Body, Request
+from fastapi import FastAPI, HTTPException, Body
 from fastapi.responses import FileResponse, HTMLResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
@@ -110,7 +110,7 @@ def merge_audio_files_func(file_paths, output_path):
         return True
     except Exception as e: logging.error(f"❌ خطا در ادغام فایل‌های صوتی: {e}"); return False
 
-# --- منطق تولید صدا با تلاش مجدد (با اصلاح) ---
+# ==================== START: بخش اصلاح شده ====================
 def generate_audio_chunk_with_retry(chunk_text, prompt_text, voice, temp, session_id):
     if not ALL_API_KEYS:
         logging.error(f"[{session_id}] ❌ هیچ کلید API برای تولید صدا در دسترس نیست.")
@@ -121,23 +121,29 @@ def generate_audio_chunk_with_retry(chunk_text, prompt_text, voice, temp, sessio
         logging.info(f"[{session_id}] ⚙️ تلاش برای تولید قطعه با کلید API شماره {key_idx_display} (...{selected_api_key[-4:]})")
         try:
             client = genai.Client(api_key=selected_api_key)
-
-            # <<< START: REVISED CONTENT CREATION >>>
-            # به جای چسباندن متن، از ساختار صحیح API استفاده می‌کنیم
-            request_parts = []
+            
+            # تغییر ۱: متن اصلی دیگر با پرامپت ترکیب نمی‌شود
+            contents = [types.Content(role="user", parts=[types.Part.from_text(text=chunk_text)])]
+            
+            # تغییر ۲: ساختار SpeechConfig را ایجاد می‌کنیم
+            speech_cfg = types.SpeechConfig(
+                voice_config=types.VoiceConfig(
+                    prebuilt_voice_config=types.PrebuiltVoiceConfig(voice_name=voice)
+                )
+            )
+            
+            # تغییر ۳: فقط اگر پرامپت وجود داشت، آن را به عنوان "context" اضافه می‌کنیم
             if prompt_text and prompt_text.strip():
-                # اگر کاربر توصیف لحن را وارد کرده بود، آن را در فیلد جداگانه prompt قرار بده
-                request_parts.append(types.Part(text=chunk_text, prompt=prompt_text))
-            else:
-                # در غیر این صورت، فقط متن اصلی را بفرست
-                request_parts.append(types.Part(text=chunk_text))
+                speech_cfg.context = prompt_text
+                logging.info(f"[{session_id}] 🎤 استفاده از پرامپت زمینه: '{prompt_text[:30]}...'")
 
-            contents = [types.Content(role="user", parts=request_parts)]
-            # <<< END: REVISED CONTENT CREATION >>>
-
-            config = types.GenerateContentConfig(temperature=temp, response_modalities=["audio"],
-                speech_config=types.SpeechConfig(voice_config=types.VoiceConfig(
-                    prebuilt_voice_config=types.PrebuiltVoiceConfig(voice_name=voice))))
+            # تغییر ۴: ساختار نهایی config با استفاده از speech_cfg اصلاح شده
+            config = types.GenerateContentConfig(
+                temperature=temp,
+                response_modalities=["audio"],
+                speech_config=speech_cfg
+            )
+            
             response = client.models.generate_content(model=FIXED_MODEL_NAME, contents=contents, config=config)
             
             if response.candidates and response.candidates[0].content and response.candidates[0].content.parts and response.candidates[0].content.parts[0].inline_data:
@@ -148,6 +154,7 @@ def generate_audio_chunk_with_retry(chunk_text, prompt_text, voice, temp, sessio
         except Exception as e:
             logging.error(f"[{session_id}] ❌ خطا در تولید قطعه با کلید شماره {key_idx_display}: {e}.")
     return None
+# ==================== END: بخش اصلاح شده ====================
 
 def core_generate_audio(text_input, prompt_input, selected_voice, temperature_val, session_id):
     logging.info(f"[{session_id}] 🚀 شروع فرآیند تولید صدا.")
@@ -203,8 +210,7 @@ def core_generate_audio(text_input, prompt_input, selected_voice, temperature_va
 
 # --- FastAPI App ---
 app = FastAPI(title="Alpha TTS API")
-
-app.mount("/static", StaticFiles(directory="public", html=True), name="static")
+app.mount("/public", StaticFiles(directory="public"), name="public")
 
 class TTSRequest(BaseModel):
     text: str
