@@ -6,7 +6,7 @@ import uuid
 import shutil
 import logging
 import threading
-import mimetypes  # <--- این خط اضافه شده است
+import mimetypes
 from fastapi import FastAPI, HTTPException, Body, Request
 from fastapi.responses import FileResponse, HTMLResponse
 from fastapi.staticfiles import StaticFiles
@@ -23,7 +23,7 @@ except ImportError:
 # --- پیکربندی لاگینگ ---
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s', datefmt='%Y-%m-%d %H:%M:%S')
 
-# --- منطق مدیریت API Key (بدون تغییر) ---
+# --- منطق مدیریت API Key ---
 ALL_API_KEYS: list[str] = []
 NEXT_KEY_INDEX: int = 0
 KEY_LOCK: threading.Lock = threading.Lock()
@@ -48,7 +48,7 @@ def get_next_api_key():
         NEXT_KEY_INDEX += 1
         return key_to_use, key_display_index
 
-# --- ثابت‌ها و توابع کمکی (بدون تغییر) ---
+# --- ثابت‌ها و توابع کمکی ---
 FIXED_MODEL_NAME = "gemini-2.5-flash-preview-tts"
 DEFAULT_MAX_CHUNK_SIZE = 3800
 DEFAULT_SLEEP_BETWEEN_REQUESTS = 8
@@ -110,7 +110,7 @@ def merge_audio_files_func(file_paths, output_path):
         return True
     except Exception as e: logging.error(f"❌ خطا در ادغام فایل‌های صوتی: {e}"); return False
 
-# --- منطق تولید صدا با تلاش مجدد (بدون تغییر) ---
+# --- منطق تولید صدا با تلاش مجدد (با اصلاح) ---
 def generate_audio_chunk_with_retry(chunk_text, prompt_text, voice, temp, session_id):
     if not ALL_API_KEYS:
         logging.error(f"[{session_id}] ❌ هیچ کلید API برای تولید صدا در دسترس نیست.")
@@ -121,12 +121,25 @@ def generate_audio_chunk_with_retry(chunk_text, prompt_text, voice, temp, sessio
         logging.info(f"[{session_id}] ⚙️ تلاش برای تولید قطعه با کلید API شماره {key_idx_display} (...{selected_api_key[-4:]})")
         try:
             client = genai.Client(api_key=selected_api_key)
-            final_text = f'"{prompt_text}"\n{chunk_text}' if prompt_text and prompt_text.strip() else chunk_text
-            contents = [types.Content(role="user", parts=[types.Part.from_text(text=final_text)])]
+
+            # <<< START: REVISED CONTENT CREATION >>>
+            # به جای چسباندن متن، از ساختار صحیح API استفاده می‌کنیم
+            request_parts = []
+            if prompt_text and prompt_text.strip():
+                # اگر کاربر توصیف لحن را وارد کرده بود، آن را در فیلد جداگانه prompt قرار بده
+                request_parts.append(types.Part(text=chunk_text, prompt=prompt_text))
+            else:
+                # در غیر این صورت، فقط متن اصلی را بفرست
+                request_parts.append(types.Part(text=chunk_text))
+
+            contents = [types.Content(role="user", parts=request_parts)]
+            # <<< END: REVISED CONTENT CREATION >>>
+
             config = types.GenerateContentConfig(temperature=temp, response_modalities=["audio"],
                 speech_config=types.SpeechConfig(voice_config=types.VoiceConfig(
                     prebuilt_voice_config=types.PrebuiltVoiceConfig(voice_name=voice))))
             response = client.models.generate_content(model=FIXED_MODEL_NAME, contents=contents, config=config)
+            
             if response.candidates and response.candidates[0].content and response.candidates[0].content.parts and response.candidates[0].content.parts[0].inline_data:
                 logging.info(f"[{session_id}] ✅ قطعه با موفقیت توسط کلید شماره {key_idx_display} تولید شد.")
                 return response.candidates[0].content.parts[0].inline_data
@@ -191,12 +204,8 @@ def core_generate_audio(text_input, prompt_input, selected_voice, temperature_va
 # --- FastAPI App ---
 app = FastAPI(title="Alpha TTS API")
 
-# این بخش فایل‌های استاتیک شما (index.html, css, js) را سرو می‌کند
-# تغییر: نام دایرکتوری را به "public" تغییر دادیم تا با ساختار فایل شما مطابقت داشته باشد.
 app.mount("/static", StaticFiles(directory="public", html=True), name="static")
 
-
-# مدل ورودی برای API
 class TTSRequest(BaseModel):
     text: str
     prompt: str | None = ""
@@ -219,7 +228,6 @@ async def generate_audio_endpoint(request: TTSRequest):
             session_id=session_id
         )
         if final_path and os.path.exists(final_path):
-            # پس از ارسال فایل، آن را پاک می‌کنیم تا فضا اشغال نشود
             return FileResponse(path=final_path, media_type='audio/wav', filename=os.path.basename(final_path), background=shutil.rmtree(os.path.dirname(final_path), ignore_errors=True))
         else:
             raise HTTPException(status_code=500, detail="خطا در تولید فایل صوتی در سرور.")
@@ -227,10 +235,8 @@ async def generate_audio_endpoint(request: TTSRequest):
         logging.error(f"[{session_id}] ❌ خطای کلی در API: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
-# این بخش صفحه اصلی (index.html) را در روت اصلی نمایش می‌دهد
 @app.get("/", response_class=HTMLResponse)
 async def read_root():
-    # تغییر: مسیر فایل را به "public/index.html" تغییر دادیم
     with open("public/index.html", "r", encoding="utf-8") as f:
         html_content = f.read()
     return HTMLResponse(content=html_content)
