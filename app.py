@@ -110,7 +110,7 @@ def merge_audio_files_func(file_paths, output_path):
         return True
     except Exception as e: logging.error(f"❌ خطا در ادغام فایل‌های صوتی: {e}"); return False
 
-# ==================== START: بخش اصلاح شده ====================
+# ==================== START: بخش نهایی و صحیح ====================
 def generate_audio_chunk_with_retry(chunk_text, prompt_text, voice, temp, session_id):
     if not ALL_API_KEYS:
         logging.error(f"[{session_id}] ❌ هیچ کلید API برای تولید صدا در دسترس نیست.")
@@ -122,26 +122,26 @@ def generate_audio_chunk_with_retry(chunk_text, prompt_text, voice, temp, sessio
         try:
             client = genai.Client(api_key=selected_api_key)
             
-            # تغییر ۱: متن اصلی دیگر با پرامپت ترکیب نمی‌شود
-            contents = [types.Content(role="user", parts=[types.Part.from_text(text=chunk_text)])]
+            # بخش اصلی محتوا را می‌سازیم
+            parts = [types.Part.from_text(text=chunk_text)]
             
-            # تغییر ۲: ساختار SpeechConfig را ایجاد می‌کنیم
-            speech_cfg = types.SpeechConfig(
-                voice_config=types.VoiceConfig(
-                    prebuilt_voice_config=types.PrebuiltVoiceConfig(voice_name=voice)
-                )
-            )
-            
-            # تغییر ۳: فقط اگر پرامپت وجود داشت، آن را به عنوان "context" اضافه می‌کنیم
+            # اگر پرامپت وجود داشت، آن را به عنوان یک بخش جداگانه به لیست parts اضافه می‌کنیم
             if prompt_text and prompt_text.strip():
-                speech_cfg.context = prompt_text
+                parts.insert(0, types.Part.from_text(text=f'({prompt_text})')) # پرامپت در ابتدای لیست قرار میگیرد
                 logging.info(f"[{session_id}] 🎤 استفاده از پرامپت زمینه: '{prompt_text[:30]}...'")
 
-            # تغییر ۴: ساختار نهایی config با استفاده از speech_cfg اصلاح شده
+            # حالا `contents` شامل هر دو بخش (پرامپت و متن اصلی) است
+            contents = [types.Content(role="user", parts=parts)]
+            
+            # ساختار config بدون تغییر باقی می‌ماند
             config = types.GenerateContentConfig(
                 temperature=temp,
                 response_modalities=["audio"],
-                speech_config=speech_cfg
+                speech_config=types.SpeechConfig(
+                    voice_config=types.VoiceConfig(
+                        prebuilt_voice_config=types.PrebuiltVoiceConfig(voice_name=voice)
+                    )
+                )
             )
             
             response = client.models.generate_content(model=FIXED_MODEL_NAME, contents=contents, config=config)
@@ -154,7 +154,7 @@ def generate_audio_chunk_with_retry(chunk_text, prompt_text, voice, temp, sessio
         except Exception as e:
             logging.error(f"[{session_id}] ❌ خطا در تولید قطعه با کلید شماره {key_idx_display}: {e}.")
     return None
-# ==================== END: بخش اصلاح شده ====================
+# ==================== END: بخش نهایی و صحیح ====================
 
 def core_generate_audio(text_input, prompt_input, selected_voice, temperature_val, session_id):
     logging.info(f"[{session_id}] 🚀 شروع فرآیند تولید صدا.")
