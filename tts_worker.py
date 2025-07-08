@@ -4,12 +4,16 @@ import os
 import re
 import struct
 import time
-import uuid  # برای ایجاد شناسه‌های منحصر به فرد
-import shutil # برای پاکسازی دایرکتوری‌ها
-import json   # برای دریافت ورودی و ارسال خروجی JSON
-import sys    # برای خواندن از stdin و نوشتن در stdout
+import uuid  # اضافه شد: برای ایجاد شناسه‌های منحصر به فرد
+import shutil # اضافه شد: برای پاکسازی دایرکتوری‌ها
+import json   # اضافه شد: برای دریافت ورودی و ارسال خروجی JSON
+import sys    # اضافه شد: برای خواندن از stdin و نوشتن در stdout
 import logging
 import threading
+
+# Import the Google Generative AI library components
+import google.generativeai as genai
+from google.generativeai import types # Ensure types is imported from genai
 
 try:
     from pydub import AudioSegment
@@ -49,8 +53,6 @@ def get_next_api_key():
 # --- END: منطق مدیریت API Key ---
 
 # --- ثابت‌ها ---
-# SPEAKER_VOICES اینجا نیازی نیست، چون از فرانت اند می‌آید.
-# FIXED_MODEL_NAME از Gradio شما آمده است.
 FIXED_MODEL_NAME = "gemini-2.5-flash-preview-tts"
 DEFAULT_MAX_CHUNK_SIZE = 3800
 DEFAULT_SLEEP_BETWEEN_REQUESTS = 8
@@ -118,8 +120,6 @@ def generate_audio_chunk_with_retry(chunk_text, prompt_text, voice, temp, sessio
     """
     یک قطعه صوتی را با قابلیت تلاش مجدد با کلیدهای مختلف API تولید می‌کند.
     """
-    import google.generativeai as genai # این import را به داخل تابع آورده‌ام تا فقط در زمان نیاز بارگذاری شود.
-
     if not ALL_API_KEYS:
         logging.error(f"[{session_id}] ❌ هیچ کلید API برای تولید صدا در دسترس نیست.")
         return None
@@ -131,65 +131,27 @@ def generate_audio_chunk_with_retry(chunk_text, prompt_text, voice, temp, sessio
             break
         logging.info(f"[{session_id}] ⚙️ تلاش برای تولید قطعه با کلید API شماره {key_idx_display} (...{selected_api_key[-4:]})")
         try:
-            genai.configure(api_key=selected_api_key) # پیکربندی با کلید فعلی
+            genai.configure(api_key=selected_api_key)
             final_text = f'"{prompt_text}"\n{chunk_text}' if prompt_text and prompt_text.strip() else chunk_text
             
-            # تغییر: استفاده از genai.types.GenerationConfig به جای types.GenerateContentConfig
-            # همچنین speech_config به طور مستقیم به generate_content ارسال می شود.
-            response = genai.GenerativeModel(model_name=FIXED_MODEL_NAME).generate_content(
-                contents=[{"role": "user", "parts": [{"text": final_text}]}],
-                generation_config=genai.types.GenerationConfig(
-                    response_mime_type="audio/wav" # مستقیم به wav خروجی بگیرید اگر مدل پشتیبانی کند.
-                ),
-                # speech_config را می توان به این صورت هم پاس داد اگر generate_content آن را بگیرد
-                # voice_name را به عنوان بخشی از data_request مشخص می کنیم.
-                # اینجا چون با generate_content کار می‌کنیم، voice_name در GenerationConfig نیست.
-                # مدل gemini-2.5-flash-preview-tts احتمالا از طریق text_input خود Gradio voice را می گیرد
-                # اما در API اصلی genai باید پارامتر voice_name را در جایی که مشخص شده است پاس دهید.
-                # با توجه به اینکه شما از genai.types.SpeechConfig در کد اصلی استفاده کرده‌اید،
-                # فرض می‌کنم مدل آن را از طریق بخش config می پذیرد.
-                # اما اگر با generate_content کار می کنید، باید چک کنید که چگونه voice را پاس دهید.
-                # برای این مثال، من فرض می کنم که `voice_config` باید در `generation_config` یا مشابه آن باشد.
-                # اگر `response_mime_type="audio/wav"` کفایت کند و مدل به صورت پیش‌فرض یا با پارامتر دیگری صدا را انتخاب کند،
-                # ممکن است نیاز به SpeechConfig در اینجا نباشد.
-                # اگر مدل TTS Gemini به پارامتر voice_name در generate_content نیاز دارد، 
-                # باید نحوه ارسال آن را بر اساس داکیومنت جدید بررسی کرد.
-                # برای سادگی و بر اساس Gradio شما، من فرض می‌کنم مدل از طریق text_input یا implicit رفتار می‌کند.
-                # یا اگر مدل فقط یک voice ثابت داشته باشد.
-                # اگر مدل شما واقعاً به voice_name نیاز دارد و از طریق API قابل تنظیم است، باید آن را در اینجا اضافه کنید.
-                # برای genai.Client که در Gradio شما بود:
-                # config = types.GenerateContentConfig(temperature=temp, response_modalities=["audio"],
-                # speech_config=types.SpeechConfig(voice_config=types.VoiceConfig(prebuilt_voice_config=types.PrebuiltVoiceConfig(voice_name=voice))))
-                # اما generate_content فعلی این config را ندارد.
-                # ************
-                # اصلاح: برای استفاده از voice_config در Gemini API با generate_content، 
-                # باید از متد `stream_generate_content` یا `generate_content` با `response_model` مناسب استفاده کنید
-                # که امکان ارسال `SpeechConfig` را فراهم کند.
-                # فعلاً، برای اینکه کد شما کمتر تغییر کند، ما فرض می‌کنیم مدل پیش‌فرض یا تنظیمات از طریق متن هندل می‌شود.
-                # اگر نیاز به کنترل دقیق Voice دارید، باید به داکیومنت Gemini API برای `gemini-2.5-flash-preview-tts`
-                # مراجعه کرده و نحوه پاس دادن `SpeechConfig` را پیدا کنید.
-                # با این حال، با توجه به اینکه Gradio شما از `prebuilt_voice_config` استفاده می کرد،
-                # و در Gradio این پارامتر به مدل داده می شد، فرض می‌کنیم Gemini API آن را می‌پذیرد.
-                # بنابراین، باید `google-generativeai.types` را دوباره استفاده کنیم.
-
-                # بازگرداندن به ساختار قبلی برای استفاده از SpeechConfig
-                # (اگرچه نیاز به import دقیق genai.types دارد)
-                from google.generativeai import types
-                
-                config = types.GenerateContentConfig(
-                    temperature=temp,
-                    response_mime_type="audio/wav", # یا response_modalities=["audio"]
-                    speech_config=types.SpeechConfig(
-                        voice_config=types.VoiceConfig(
-                            prebuilt_voice_config=types.PrebuiltVoiceConfig(voice_name=voice)
-                        )
+            # این همان بلاک کدی است که نیاز به اصلاح دارد:
+            config = types.GenerationConfig( # Changed from types.GenerateContentConfig to types.GenerationConfig
+                temperature=temp,
+                response_mime_type="audio/wav",
+                # speech_config را مستقیما به GenerativeModel.generate_content پاس می‌دهیم
+                # و باید داخل SpeechConfig باشد.
+                speech_config=types.SpeechConfig(
+                    voice_config=types.VoiceConfig(
+                        prebuilt_voice_config=types.PrebuiltVoiceConfig(voice_name=voice)
                     )
                 )
-                response = genai.GenerativeModel(model_name=FIXED_MODEL_NAME).generate_content(
-                    contents=[{"role": "user", "parts": [{"text": final_text}]}],
-                    generation_config=config # حالا config را پاس می دهیم
-                )
-                
+            )
+
+            response = genai.GenerativeModel(model_name=FIXED_MODEL_NAME).generate_content(
+                contents=[{"role": "user", "parts": [{"text": final_text}]}],
+                generation_config=config # پرانتز بسته اینجا اضافه شد
+            )
+            
             if response.candidates and response.candidates[0].content and response.candidates[0].content.parts and response.candidates[0].content.parts[0].inline_data:
                 logging.info(f"[{session_id}] ✅ قطعه با موفقیت توسط کلید شماره {key_idx_display} تولید شد.")
                 return response.candidates[0].content.parts[0].inline_data
@@ -211,16 +173,14 @@ def main():
 
     logging.info(f"[{session_id}] 🚀 شروع فرآیند تولید صدا.")
     
-    # تغییر: ایجاد یک دایرکتوری موقت منحصر به فرد برای هر درخواست
     temp_dir = f"temp_{session_id}"
     os.makedirs(temp_dir, exist_ok=True)
     
-    output_base_name = os.path.join(temp_dir, f"audio_session_{session_id}") # نام فایل پایه با UUID
+    output_base_name = os.path.join(temp_dir, f"audio_session_{session_id}")
 
     if not text_input or not text_input.strip():
         logging.error(f"[{session_id}] ❌ متن ورودی خالی است.")
         shutil.rmtree(temp_dir)
-        # ارسال پیام خطا به Node.js
         sys.stdout.write(json.dumps({"success": False, "error": "متن ورودی نمی‌تواند خالی باشد."}))
         sys.exit(1)
 
@@ -238,12 +198,6 @@ def main():
             inline_data = generate_audio_chunk_with_retry(chunk, prompt_input, selected_voice, temperature_val, session_id)
             if inline_data:
                 data_buffer = inline_data.data
-                # اگر `response_mime_type="audio/wav"` در generate_content استفاده شود، دیگر نیازی به convert_to_wav نیست.
-                # ext = mimetypes.guess_extension(inline_data.mime_type) or ".wav"
-                # if "audio/L" in inline_data.mime_type and ext == ".wav": 
-                #     data_buffer = convert_to_wav(data_buffer, inline_data.mime_type)
-                
-                # فرض می‌کنیم خروجی همیشه WAV است
                 ext = ".wav" 
                 
                 fname_base = f"{output_base_name}_part{i+1:03d}"
@@ -252,7 +206,6 @@ def main():
                     generated_files.append(fpath)
                 else:
                     logging.error(f"[{session_id}] ❌ موفق به ذخیره فایل برای قطعه {i+1} نشدیم.")
-                    # اگر یک قطعه نتواند ذخیره شود، کل فرآیند را خطا اعلام می‌کنیم.
                     raise Exception(f"خطا در ذخیره فایل صوتی برای قطعه {i+1}.") 
             else:
                 logging.error(f"[{session_id}] 🛑 فرآیند متوقف شد زیرا تولید قطعه {i+1} با تمام کلیدهای موجود ناموفق بود.")
@@ -266,15 +219,12 @@ def main():
             sys.stdout.write(json.dumps({"success": False, "error": "هیچ فایل صوتی تولید نشد."}))
             sys.exit(1)
         
-        # نام فایل نهایی نیز منحصر به فرد خواهد بود و در دایرکتوری اصلی پروژه قرار می‌گیرد.
-        # Node.js مسئول پاکسازی این فایل خواهد بود.
         final_output_path = f"output_{session_id}.wav" 
 
         if len(generated_files) > 1:
             if PYDUB_AVAILABLE:
                 if not merge_audio_files_func(generated_files, final_output_path):
                     logging.error(f"[{session_id}] ❌ ادغام فایل‌ها ناموفق بود. بازگشت به اولین قطعه.")
-                    # در صورت شکست ادغام، اولین قطعه را به عنوان خروجی نهایی برمی‌گردانیم
                     shutil.copy(generated_files[0], final_output_path)
             else: 
                 logging.warning(f"[{session_id}] ⚠️ pydub در دسترس نیست. اولین قطعه صوتی ارائه می‌شود.")
@@ -301,5 +251,5 @@ def main():
             logging.info(f"[{session_id}] 🧹 دایرکتوری موقت '{temp_dir}' پاکسازی شد.")
 
 if __name__ == "__main__":
-    _init_api_keys() # اطمینان از بارگذاری کلیدها قبل از شروع
+    _init_api_keys()
     main()
