@@ -1,40 +1,37 @@
-// server.js
 const express = require('express');
 const path = require('path');
-const { spawn } = require('child_process'); // برای اجرای اسکریپت پایتون
-const fs = require('fs'); // برای مدیریت فایل‌ها
-const { v4: uuidv4 } = require('uuid'); // برای تولید شناسه‌های منحصر به فرد
+const { spawn } = require('child_process');
+const fs = require('fs');
+const { v4: uuidv4 } = require('uuid');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// Middleware برای سرو کردن فایل‌های استاتیک از دایرکتوری 'public'
 app.use(express.static(path.join(__dirname, 'public')));
-
-// Middleware برای پردازش بدنه درخواست‌های JSON
 app.use(express.json());
 
-// **مسیر مفسر پایتون در محیط مجازی**
-// این بخش تلاش می‌کند مفسر پایتون را در venv/bin/python3 یا venv/bin/python پیدا کند.
-// اگر پیدا نشد، به python3 سیستمی برمی‌گردد (که Render معمولا فراهم می‌کند).
+// **جدید: مسیر مفسر پایتون در محیط مجازی را به صورت هوشمند پیدا کنید**
 let PYTHON_EXECUTABLE;
 const venvBinPath = path.join(__dirname, 'venv', 'bin');
 
+// اولویت با python3 در venv/bin
 if (fs.existsSync(path.join(venvBinPath, 'python3'))) {
     PYTHON_EXECUTABLE = path.join(venvBinPath, 'python3');
-} else if (fs.existsSync(path.join(venvBinPath, 'python'))) {
+}
+// اگر python3 نبود، python را در venv/bin چک کن
+else if (fs.existsSync(path.join(venvBinPath, 'python'))) {
     PYTHON_EXECUTABLE = path.join(venvBinPath, 'python');
-} else {
-    // Fallback to system-wide python3 if venv executable is not found.
-    // This might happen if venv creation failed or python executable name is different.
-    console.warn("Python executable not found in venv. Falling back to system python3.");
-    PYTHON_EXECUTABLE = 'python3';
+}
+// در نهایت، اگر venv/bin/python3 یا venv/bin/python پیدا نشد، به سراغ python3 سیستمی برو.
+// این یک fallback است که در صورت عدم موفقیت venv به کار می‌رود.
+else {
+    console.warn("Python executable not found in venv. Falling back to system-wide 'python3'. Ensure venv is created correctly.");
+    PYTHON_EXECUTABLE = 'python3'; 
 }
 
-console.log(`Using Python executable: ${PYTHON_EXECUTABLE}`);
+console.log(`[Node.js] Using Python executable: ${PYTHON_EXECUTABLE}`);
 
 
-// API Endpoint جدید برای تبدیل متن به صدا
 app.post('/generate-audio', (req, res) => {
     const { text, prompt, speaker, temperature } = req.body;
 
@@ -42,21 +39,33 @@ app.post('/generate-audio', (req, res) => {
         return res.status(400).json({ error: 'متن ورودی نمی‌تواند خالی باشد.' });
     }
 
-    const sessionId = uuidv4().substring(0, 8); // یک شناسه جلسه کوتاه برای لاگ‌ها
+    const sessionId = uuidv4().substring(0, 8);
 
-    console.log(`[${sessionId}] 🚀 درخواست جدید برای تولید صدا دریافت شد.`);
-    console.log(`[${sessionId}] متن: "${text.substring(0, Math.min(text.length, 50))}..."`); // نمایش حداکثر 50 کاراکتر
-    console.log(`[${sessionId}] گوینده: ${speaker}, دما: ${temperature}`);
+    console.log(`[${sessionId}] 🚀 New request received for audio generation.`);
+    console.log(`[${sessionId}] Text: "${text.substring(0, Math.min(text.length, 50))}..."`);
+    console.log(`[${sessionId}] Speaker: ${speaker}, Temperature: ${temperature}`);
 
-    // مسیر اسکریپت پایتون
     const pythonScriptPath = path.join(__dirname, 'tts_worker.py');
 
-    // اطلاعات ورودی برای اسکریپت پایتون
+    // **مهم: مطمئن شو که فایل اسکریپت وجود دارد**
+    if (!fs.existsSync(pythonScriptPath)) {
+        console.error(`[${sessionId}] ❌ Error: Python script not found at ${pythonScriptPath}`);
+        return res.status(500).json({ error: 'خطای داخلی سرور: اسکریپت TTS پیدا نشد.' });
+    }
+    // **مهم: مطمئن شو که مفسر پایتون وجود دارد (اگر یک مسیر مطلق است)**
+    if (PYTHON_EXECUTABLE.startsWith('/') || PYTHON_EXECUTABLE.startsWith('./')) { // Check if it's an absolute or relative path
+        if (!fs.existsSync(PYTHON_EXECUTABLE)) {
+            console.error(`[${sessionId}] ❌ Error: Python executable not found at ${PYTHON_EXECUTABLE}`);
+            return res.status(500).json({ error: 'خطای داخلی سرور: مفسر پایتون پیدا نشد.' });
+        }
+    }
+
+
     const inputData = {
         text: text,
         prompt: prompt,
         speaker: speaker,
-        temperature: temperature,
+        temperature: parseFloat(temperature), // Ensure temperature is a number
         session_id: sessionId
     };
 
@@ -64,92 +73,78 @@ app.post('/generate-audio', (req, res) => {
     let pythonError = '';
 
     const pythonProcess = spawn(PYTHON_EXECUTABLE, [pythonScriptPath], {
-        stdio: ['pipe', 'pipe', 'pipe'] // stdin, stdout, stderr
+        stdio: ['pipe', 'pipe', 'pipe']
     });
 
-    // نوشتن داده‌ها به stdin اسکریپت پایتون
     pythonProcess.stdin.write(JSON.stringify(inputData));
-    pythonProcess.stdin.end(); // بستن stdin پس از ارسال داده
+    pythonProcess.stdin.end();
 
-    // گوش دادن به stdout اسکریپت پایتون
     pythonProcess.stdout.on('data', (data) => {
         pythonOutput += data.toString();
     });
 
-    // گوش دادن به stderr اسکریپت پایتون
     pythonProcess.stderr.on('data', (data) => {
         pythonError += data.toString();
-        // Log stderr directly, as it often contains useful debugging info from Python
-        console.error(`[${sessionId}] Python stderr: ${data.toString().trim()}`);
+        console.error(`[${sessionId}] Python stderr: ${data.toString()}`);
     });
 
-    // گوش دادن به رویداد بسته شدن اسکریپت پایتون
     pythonProcess.on('close', (code) => {
-        console.log(`[${sessionId}] اسکریپت پایتون با کد خروج ${code} بسته شد.`);
-
-        // Log full python output for debugging
-        if (pythonOutput) {
-            console.log(`[${sessionId}] Python stdout: ${pythonOutput.trim()}`);
-        }
+        console.log(`[${sessionId}] Python script exited with code ${code}.`);
 
         if (code !== 0) {
-            // Attempt to parse error message from Python's stdout
-            let errorMessage = 'خطای ناشناخته در سرویس تبدیل متن به صدا.';
+            console.error(`[${sessionId}] Python script failed. Full stderr:`, pythonError);
+            console.error(`[${sessionId}] Python script stdout (potential JSON error):`, pythonOutput);
             try {
-                const parsedOutput = JSON.parse(pythonOutput);
-                errorMessage = parsedOutput.error || errorMessage;
-            } catch (e) {
-                // If stdout is not valid JSON, use stderr or a generic message
-                errorMessage = pythonError || 'خطا در اجرای سرویس تبدیل متن به صدا.';
+                const errorParsed = JSON.parse(pythonOutput);
+                return res.status(500).json({ error: errorParsed.error || 'خطای ناشناخته از سرویس پایتون.' });
+            } catch (parseError) {
+                return res.status(500).json({ error: 'خطا در سرویس تبدیل متن به صدا. لطفاً لاگ‌های سرور را بررسی کنید. پیام خطای پایتون: ' + (pythonError || 'پاسخ نامشخص.') });
             }
-            return res.status(500).json({ error: errorMessage });
         }
 
         try {
             const result = JSON.parse(pythonOutput);
             if (result.success && result.audio_file_path) {
-                // Note: result.audio_file_path is now just the filename (e.g., "output_xxxx.wav")
-                // because tts_worker.py puts the final file in the root directory.
                 const audioFilePath = path.join(__dirname, result.audio_file_path);
-                console.log(`[${sessionId}] ✅ فایل صوتی تولید شده: ${audioFilePath}`);
+                console.log(`[${sessionId}] ✅ Audio file generated: ${audioFilePath}`);
 
-                // ارسال فایل صوتی به کلاینت
                 res.sendFile(audioFilePath, (err) => {
                     if (err) {
-                        console.error(`[${sessionId}] ❌ خطا در ارسال فایل صوتی:`, err);
-                        return res.status(500).send('خطا در ارسال فایل صوتی.');
+                        console.error(`[${sessionId}] ❌ Error sending audio file:`, err);
+                        res.status(500).send('خطا در ارسال فایل صوتی.');
                     }
-                    // پس از ارسال فایل، آن را پاک کنید
                     fs.unlink(audioFilePath, (unlinkErr) => {
-                        if (unlinkErr) console.error(`[${sessionId}] 🧹 خطا در پاک کردن فایل موقت:`, unlinkErr);
-                        else console.log(`[${sessionId}] 🧹 فایل موقت پاک شد: ${audioFilePath}`);
+                        if (unlinkErr) console.error(`[${sessionId}] 🧹 Error cleaning up temporary file:`, unlinkErr);
+                        else console.log(`[${sessionId}] 🧹 Temporary file deleted: ${audioFilePath}`);
                     });
                 });
             } else {
-                const errMsg = result.error || 'فایل صوتی تولید نشد یا خطای ناشناخته رخ داد.';
-                console.error(`[${sessionId}] ❌ پایتون موفقیت را برنگرداند:`, errMsg);
-                res.status(500).json({ error: errMsg });
+                console.error(`[${sessionId}] ❌ Python script did not return success or audio file path:`, result.error || 'Unknown response');
+                res.status(500).json({ error: result.error || 'فایل صوتی تولید نشد یا خطای ناشناخته رخ داد.' });
             }
         } catch (parseError) {
-            console.error(`[${sessionId}] ❌ خطای JSON.parse در خروجی پایتون:`, parseError);
-            console.error(`[${sessionId}] خروجی خام پایتون:`, pythonOutput);
-            res.status(500).json({ error: 'خطا در پردازش پاسخ از سرویس تبدیل متن به صدا.' });
+            console.error(`[${sessionId}] ❌ JSON.parse error from Python stdout:`, parseError);
+            console.error(`[${sessionId}] Raw Python stdout:`, pythonOutput);
+            res.status(500).json({ error: 'خطا در پردازش پاسخ از سرویس تبدیل متن به صدا (پاسخ پایتون نامعتبر است).' });
         }
     });
 
     pythonProcess.on('error', (err) => {
-        console.error(`[${sessionId}] ❌ خطای اجرای فرآیند پایتون (spawn):`, err);
-        res.status(500).json({ error: 'خطا در اجرای سرویس تبدیل متن به صدا.' });
+        console.error(`[${sessionId}] ❌ Failed to start Python process:`, err);
+        // This 'error' event usually fires if the executable specified in spawn is not found
+        if (err.code === 'ENOENT') {
+            res.status(500).json({ error: `خطا در اجرای سرویس پایتون: مفسر پایتون در مسیر '${PYTHON_EXECUTABLE}' پیدا نشد.` });
+        } else {
+            res.status(500).json({ error: `خطای ناشناخته در اجرای سرویس پایتون: ${err.message}` });
+        }
     });
 });
 
-// Fallback برای هر مسیر دیگری - index.html شما را سرو می‌کند
 app.get('*', (req, res) => {
     res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
 
-// شروع سرور
 app.listen(PORT, () => {
-    console.log(`سرور Node.js در پورت ${PORT} گوش می‌دهد.`);
-    console.log(`دسترسی به برنامه شما در: http://localhost:${PORT} (یا URL Render.com شما)`);
+    console.log(`Node.js server listening on port ${PORT}`);
+    console.log(`Access your application at: http://localhost:${PORT} (or your Render.com URL)`);
 });
