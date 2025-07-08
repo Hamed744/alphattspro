@@ -59,7 +59,6 @@ def get_next_api_key():
         return key_to_use, key_display_index
 
 # --- ثابت‌ها ---
-# **اصلاح: ثابت‌های حذف شده دوباره اضافه شدند**
 FIXED_MODEL_NAME = "gemini-2.5-flash-preview-tts"
 DEFAULT_MAX_CHUNK_SIZE = 3800
 DEFAULT_SLEEP_BETWEEN_REQUESTS = 8
@@ -94,7 +93,7 @@ def parse_audio_mime_type(mime_type: str) -> dict[str, int]:
             except: pass
     return {"bits_per_sample": bits, "rate": rate}
 
-def smart_text_split(text, max_size=DEFAULT_MAX_CHUNK_SIZE): # استفاده از ثابت
+def smart_text_split(text, max_size=DEFAULT_MAX_CHUNK_SIZE):
     if len(text) <= max_size: return [text]
     chunks, current_chunk = [], ""
     sentences = re.split(r'(?<=[.!?؟])\s+', text)
@@ -128,10 +127,9 @@ def merge_audio_files_func(file_paths, output_path):
         logging.error(f"❌ خطا در ادغام فایل‌های صوتی: {e}")
         return False
 
-# --- منطق تولید صدا ---
+# --- منطق تولید صدا (با استفاده از genai.Client) ---
 def generate_audio_chunk_with_retry(chunk_text, prompt_text, voice, temp, session_id):
     if not ALL_API_KEYS:
-        logging.error(f"[{session_id}] ❌ هیچ کلید API برای تولید صدا در دسترس نیست.")
         return None, "هیچ کلید API برای پردازش در دسترس نیست."
 
     last_error = "خطای نامشخص"
@@ -139,42 +137,35 @@ def generate_audio_chunk_with_retry(chunk_text, prompt_text, voice, temp, sessio
     for i in range(len(ALL_API_KEYS)):
         selected_api_key, key_idx_display = get_next_api_key()
         if not selected_api_key:
-            logging.warning(f"[{session_id}] ⚠️ get_next_api_key هیچ کلیدی برنگرداند.")
             continue
         
         logging.info(f"[{session_id}] ⚙️ تلاش برای تولید قطعه با کلید API شماره {key_idx_display} (...{selected_api_key[-4:]})")
         
         try:
-            genai.configure(api_key=selected_api_key)
+            # **اصلاح کلیدی: استفاده از genai.Client دقیقاً مانند کد هاگینگ فیس**
+            client = genai.Client(api_key=selected_api_key)
             final_text = f'"{prompt_text}"\n{chunk_text}' if prompt_text and prompt_text.strip() else chunk_text
+            contents = [types.Content(role="user", parts=[types.Part.from_text(text=final_text)])]
             
-            # کد اصلاح شده برای API جدید (بدون SpeechConfig)
-            model = genai.GenerativeModel(FIXED_MODEL_NAME)
-            
-            generation_config = types.GenerationConfig(
+            # **استفاده از همان ساختار config که کار می‌کرد**
+            config = types.GenerateContentConfig(
                 temperature=temp,
-                response_mime_type="audio/wav"
+                response_modalities=["audio"],
+                speech_config=types.SpeechConfig(
+                    voice_config=types.VoiceConfig(
+                        prebuilt_voice_config=types.PrebuiltVoiceConfig(voice_name=voice)
+                    )
+                )
             )
-            
-            response = model.generate_content(
-                contents=[{"role": "user", "parts": [{"text": final_text}]}],
-                generation_config=generation_config
-            )
+
+            response = client.models.generate_content(model=FIXED_MODEL_NAME, contents=contents, config=config)
 
             if response.candidates and response.candidates[0].content and response.candidates[0].content.parts and response.candidates[0].content.parts[0].inline_data:
                 logging.info(f"[{session_id}] ✅ قطعه با موفقیت توسط کلید شماره {key_idx_display} تولید شد.")
                 return response.candidates[0].content.parts[0].inline_data, None
             else:
                 logging.warning(f"[{session_id}] ⚠️ پاسخ API برای قطعه با کلید شماره {key_idx_display} بدون داده صوتی بود. پاسخ: {response}")
-                # تلاش برای استخراج دلیل خطا از پاسخ
-                try:
-                    prompt_feedback = response.prompt_feedback
-                    if prompt_feedback.block_reason:
-                        last_error = f"درخواست توسط API مسدود شد. دلیل: {prompt_feedback.block_reason_message or prompt_feedback.block_reason}"
-                    else:
-                        last_error = f"پاسخ API با کلید شماره {key_idx_display} بدون داده صوتی بود."
-                except (AttributeError, IndexError):
-                     last_error = f"پاسخ API با کلید شماره {key_idx_display} ساختار نامشخصی داشت."
+                last_error = f"پاسخ API با کلید شماره {key_idx_display} بدون داده صوتی بود."
         
         except Exception as e:
             logging.error(f"[{session_id}] ❌ خطا در تولید قطعه با کلید شماره {key_idx_display}. خطای API: {e}.")
@@ -216,7 +207,6 @@ def main():
         if not text_input or not text_input.strip():
             raise ValueError("متن ورودی نمی‌تواند خالی باشد.")
 
-        # **اصلاح:** max_size به تابع پاس داده می‌شود
         text_chunks = smart_text_split(text_input, max_size=DEFAULT_MAX_CHUNK_SIZE)
         if not text_chunks:
             raise ValueError("متن قابل پردازش به قطعات کوچکتر نیست.")
@@ -229,9 +219,14 @@ def main():
             
             if inline_data:
                 data_buffer = inline_data.data
-                ext = ".wav" 
+                ext = mimetypes.guess_extension(inline_data.mime_type) or ".wav"
+                if "audio/L" in inline_data.mime_type and ext == ".wav": 
+                    data_buffer = convert_to_wav(data_buffer, inline_data.mime_type)
+                if not ext.startswith("."): ext = "." + ext
+                
                 fname_base = f"{output_base_name}_part{i+1:03d}"
                 fpath = save_binary_file(f"{fname_base}{ext}", data_buffer)
+
                 if fpath: 
                     generated_files.append(fpath)
                 else:
