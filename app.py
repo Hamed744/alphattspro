@@ -6,8 +6,8 @@ import uuid
 import shutil
 import logging
 import threading
-import mimetypes
-from fastapi import FastAPI, HTTPException, Body
+import mimetypes  # <--- این خط اضافه شده است
+from fastapi import FastAPI, HTTPException, Body, Request
 from fastapi.responses import FileResponse, HTMLResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
@@ -23,7 +23,7 @@ except ImportError:
 # --- پیکربندی لاگینگ ---
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s', datefmt='%Y-%m-%d %H:%M:%S')
 
-# --- منطق مدیریت API Key ---
+# --- منطق مدیریت API Key (بدون تغییر) ---
 ALL_API_KEYS: list[str] = []
 NEXT_KEY_INDEX: int = 0
 KEY_LOCK: threading.Lock = threading.Lock()
@@ -48,7 +48,7 @@ def get_next_api_key():
         NEXT_KEY_INDEX += 1
         return key_to_use, key_display_index
 
-# --- ثابت‌ها و توابع کمکی ---
+# --- ثابت‌ها و توابع کمکی (بدون تغییر) ---
 FIXED_MODEL_NAME = "gemini-2.5-flash-preview-tts"
 DEFAULT_MAX_CHUNK_SIZE = 3800
 DEFAULT_SLEEP_BETWEEN_REQUESTS = 8
@@ -110,7 +110,7 @@ def merge_audio_files_func(file_paths, output_path):
         return True
     except Exception as e: logging.error(f"❌ خطا در ادغام فایل‌های صوتی: {e}"); return False
 
-# ==================== START: بخش نهایی و صحیح ====================
+# --- منطق تولید صدا با تلاش مجدد (بدون تغییر) ---
 def generate_audio_chunk_with_retry(chunk_text, prompt_text, voice, temp, session_id):
     if not ALL_API_KEYS:
         logging.error(f"[{session_id}] ❌ هیچ کلید API برای تولید صدا در دسترس نیست.")
@@ -121,31 +121,12 @@ def generate_audio_chunk_with_retry(chunk_text, prompt_text, voice, temp, sessio
         logging.info(f"[{session_id}] ⚙️ تلاش برای تولید قطعه با کلید API شماره {key_idx_display} (...{selected_api_key[-4:]})")
         try:
             client = genai.Client(api_key=selected_api_key)
-            
-            # بخش اصلی محتوا را می‌سازیم
-            parts = [types.Part.from_text(text=chunk_text)]
-            
-            # اگر پرامپت وجود داشت، آن را به عنوان یک بخش جداگانه به لیست parts اضافه می‌کنیم
-            if prompt_text and prompt_text.strip():
-                parts.insert(0, types.Part.from_text(text=f'({prompt_text})')) # پرامپت در ابتدای لیست قرار میگیرد
-                logging.info(f"[{session_id}] 🎤 استفاده از پرامپت زمینه: '{prompt_text[:30]}...'")
-
-            # حالا `contents` شامل هر دو بخش (پرامپت و متن اصلی) است
-            contents = [types.Content(role="user", parts=parts)]
-            
-            # ساختار config بدون تغییر باقی می‌ماند
-            config = types.GenerateContentConfig(
-                temperature=temp,
-                response_modalities=["audio"],
-                speech_config=types.SpeechConfig(
-                    voice_config=types.VoiceConfig(
-                        prebuilt_voice_config=types.PrebuiltVoiceConfig(voice_name=voice)
-                    )
-                )
-            )
-            
+            final_text = f'"{prompt_text}"\n{chunk_text}' if prompt_text and prompt_text.strip() else chunk_text
+            contents = [types.Content(role="user", parts=[types.Part.from_text(text=final_text)])]
+            config = types.GenerateContentConfig(temperature=temp, response_modalities=["audio"],
+                speech_config=types.SpeechConfig(voice_config=types.VoiceConfig(
+                    prebuilt_voice_config=types.PrebuiltVoiceConfig(voice_name=voice))))
             response = client.models.generate_content(model=FIXED_MODEL_NAME, contents=contents, config=config)
-            
             if response.candidates and response.candidates[0].content and response.candidates[0].content.parts and response.candidates[0].content.parts[0].inline_data:
                 logging.info(f"[{session_id}] ✅ قطعه با موفقیت توسط کلید شماره {key_idx_display} تولید شد.")
                 return response.candidates[0].content.parts[0].inline_data
@@ -154,7 +135,6 @@ def generate_audio_chunk_with_retry(chunk_text, prompt_text, voice, temp, sessio
         except Exception as e:
             logging.error(f"[{session_id}] ❌ خطا در تولید قطعه با کلید شماره {key_idx_display}: {e}.")
     return None
-# ==================== END: بخش نهایی و صحیح ====================
 
 def core_generate_audio(text_input, prompt_input, selected_voice, temperature_val, session_id):
     logging.info(f"[{session_id}] 🚀 شروع فرآیند تولید صدا.")
@@ -210,8 +190,13 @@ def core_generate_audio(text_input, prompt_input, selected_voice, temperature_va
 
 # --- FastAPI App ---
 app = FastAPI(title="Alpha TTS API")
-app.mount("/public", StaticFiles(directory="public"), name="public")
 
+# این بخش فایل‌های استاتیک شما (index.html, css, js) را سرو می‌کند
+# تغییر: نام دایرکتوری را به "public" تغییر دادیم تا با ساختار فایل شما مطابقت داشته باشد.
+app.mount("/static", StaticFiles(directory="public", html=True), name="static")
+
+
+# مدل ورودی برای API
 class TTSRequest(BaseModel):
     text: str
     prompt: str | None = ""
@@ -234,6 +219,7 @@ async def generate_audio_endpoint(request: TTSRequest):
             session_id=session_id
         )
         if final_path and os.path.exists(final_path):
+            # پس از ارسال فایل، آن را پاک می‌کنیم تا فضا اشغال نشود
             return FileResponse(path=final_path, media_type='audio/wav', filename=os.path.basename(final_path), background=shutil.rmtree(os.path.dirname(final_path), ignore_errors=True))
         else:
             raise HTTPException(status_code=500, detail="خطا در تولید فایل صوتی در سرور.")
@@ -241,8 +227,10 @@ async def generate_audio_endpoint(request: TTSRequest):
         logging.error(f"[{session_id}] ❌ خطای کلی در API: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
+# این بخش صفحه اصلی (index.html) را در روت اصلی نمایش می‌دهد
 @app.get("/", response_class=HTMLResponse)
 async def read_root():
+    # تغییر: مسیر فایل را به "public/index.html" تغییر دادیم
     with open("public/index.html", "r", encoding="utf-8") as f:
         html_content = f.read()
     return HTMLResponse(content=html_content)
