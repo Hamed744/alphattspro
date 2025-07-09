@@ -5,33 +5,38 @@ const path = require('path');
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// لیست تمام سرورهای بک‌اند شما در هاگینگ فیس
 const HF_WORKERS = [
     'hamed744-ttspro.hf.space',
     'hamed744-ttspro2.hf.space',
     'hamed744-ttspro3.hf.space'
 ];
 
-// تابع برای انتخاب یک سرور به صورت تصادفی
-const getRandomWorker = () => {
-    const randomIndex = Math.floor(Math.random() * HF_WORKERS.length);
-    return HF_WORKERS[randomIndex];
-};
+// --- تغییر اصلی اینجاست ---
+// یک متغیر برای نگهداری ایندکس سرور بعدی
+let nextWorkerIndex = 0;
 
-// سرو کردن فایل‌های استاتیک (index.html شما)
+// تابع برای انتخاب سرور بعدی به ترتیب
+const getNextWorker = () => {
+    // سرور فعلی را انتخاب کن
+    const worker = HF_WORKERS[nextWorkerIndex];
+    
+    // ایندکس را برای درخواست بعدی یک واحد افزایش بده
+    nextWorkerIndex = (nextWorkerIndex + 1) % HF_WORKERS.length;
+    
+    return worker;
+};
+// --- پایان تغییر ---
+
 app.use(express.static(path.join(__dirname, 'public')));
 
-// پراکسی کردن تمام درخواست‌های API به یک سرور تصادفی
-// توجه: آدرس API در فرانت‌اند شما باید /api/generate باشد
 app.use('/api/generate', proxy(() => {
-    const worker = getRandomWorker();
-    console.log(`Forwarding request to worker: ${worker}`);
+    // از تابع جدید برای انتخاب سرور به ترتیب استفاده می‌کنیم
+    const worker = getNextWorker(); 
+    console.log(`Forwarding request to worker (Round-robin): ${worker}`);
     return worker;
 }, {
-    https: true, // اتصال امن به هاگینگ فیس
-    // مسیر درخواست را بازنویسی می‌کنیم تا با API جدید اسپیس‌ها هماهنگ باشد
+    https: true,
     proxyReqPathResolver: function (req) {
-        // درخواست از /api/generate به /generate تبدیل می‌شود
         return '/generate'; 
     },
     proxyErrorHandler: function (err, res, next) {
@@ -40,12 +45,11 @@ app.use('/api/generate', proxy(() => {
     }
 }));
 
-// برای هر مسیر دیگری، صفحه اصلی را نمایش بده
 app.get('*', (req, res) => {
     res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
 
 app.listen(PORT, () => {
     console.log(`Smart proxy server listening on port ${PORT}`);
-    console.log(`Distributing load across: ${HF_WORKERS.join(', ')}`);
+    console.log(`Distributing load across (Round-robin): ${HF_WORKERS.join(', ')}`);
 });
