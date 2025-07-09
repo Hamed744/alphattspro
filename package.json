@@ -1,0 +1,16 @@
+{
+  "name": "alpha-tts-load-balancer-proxy",
+  "version": "1.0.0",
+  "description": "Smart proxy to distribute load across Hugging Face Spaces.",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "express": "^4.18.2",
+    "express-http-proxy": "^2.1.0"
+  },
+  "engines": {
+    "node": ">=16.0.0"
+  }
+}
