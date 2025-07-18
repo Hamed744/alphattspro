@@ -14,6 +14,9 @@
             --text-primary: #1A202C; --text-secondary: #626F86; --text-tertiary: #8A94A6;
             --accent-primary: #4A6CFA; --accent-primary-hover: #3553D6; --accent-primary-glow: rgba(74, 108, 250, 0.25);
             --accent-secondary: #0FD4A8; --accent-secondary-hover: #0DA986; --accent-secondary-glow: rgba(15, 212, 168, 0.2);
+            /* New gradient colors for the special card */
+            --accent-clone-start: #4A6CFA;
+            --accent-clone-end: #A052E8;
             --waveform-color-active: var(--accent-primary); --waveform-color-inactive: #D0D9E6; --waveform-dashed-line-color: #E0E4E9;
             --shadow-sm: 0 1px 2px 0 rgba(26, 32, 44, 0.03); --shadow-md: 0 4px 6px -1px rgba(26, 32, 44, 0.05), 0 2px 4px -2px rgba(26, 32, 44, 0.04);
             --shadow-lg: 0 10px 15px -3px rgba(26, 32, 44, 0.06), 0 4px 6px -4px rgba(26, 32, 44, 0.05);
@@ -50,7 +53,7 @@
         .app-header { padding: 0.5rem 0 2.5rem 0; text-align: center; margin-bottom: 1.5rem; animation: fadeIn 0.8s 0.2s ease-out backwards; }
         .app-header h1 { font-size: 2.5em; font-weight: 900; margin: 0 0 0.8rem 0; background: linear-gradient(90deg, var(--accent-primary), var(--accent-secondary)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; letter-spacing: -1px; }
         .app-header p { font-size: 1.05em; color: var(--text-secondary); margin-top: 0; opacity: 0.9; font-weight: 400; line-height: 1.7; }
-        .main-content { position: relative; padding: 3rem; background-color: var(--panel-bg); border-radius: var(--radius-card); box-shadow: var(--shadow-xl); border: 1px solid var(--panel-border); animation: fadeIn 0.8s 0.4s ease-out backwards; }
+        .main-content { padding: 3rem; background-color: var(--panel-bg); border-radius: var(--radius-card); box-shadow: var(--shadow-xl); border: 1px solid var(--panel-border); animation: fadeIn 0.8s 0.4s ease-out backwards; position: relative; }
         .form-group { margin-bottom: 2.2rem; }
         label { display: block; font-weight: 700; color: var(--text-primary); font-size: 1.1em; margin-bottom: 1rem; }
         textarea, input[type="text"] { width: 100%; padding: 1rem 1.2rem; border-radius: var(--radius-input); border: 1px solid var(--input-border); background-color: var(--input-bg); color: var(--text-primary); box-shadow: var(--shadow-sm) inset; font-family: var(--app-font); font-size: 1rem; box-sizing: border-box; transition: var(--transition-smooth); }
@@ -133,38 +136,27 @@
         #voice-clone-view #remove-file-btn { background: none; border: none; color: var(--text-tertiary); cursor: pointer; font-size: 1.5rem; transition: all 0.2s; flex-shrink: 0; }
         #voice-clone-view #remove-file-btn:hover { color: #e53e3e; transform: scale(1.1); }
         
-        /* --- UPDATED Back Button --- */
+        /* --- MODIFIED: Back to Standard View Button --- */
         #back-to-standard-btn {
             position: absolute;
             top: 2rem;
             left: 2rem;
-            background: var(--input-bg);
-            border: 1px solid var(--panel-border);
-            color: var(--text-secondary);
+            background: var(--accent-secondary);
+            color: white;
+            border: none;
+            border-radius: var(--radius-btn);
+            padding: 10px 20px;
+            font-family: var(--app-font);
             font-size: 0.95em;
             font-weight: 600;
-            padding: 10px 20px;
-            border-radius: var(--radius-btn);
             cursor: pointer;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 8px;
             transition: all 0.2s ease;
-        }
-        #back-to-standard-btn svg {
-            width: 18px;
-            height: 18px;
-            transition: transform 0.2s ease;
-        }
-        #back-to-standard-btn:hover {
-            background: var(--accent-primary);
-            color: white;
-            transform: translateY(-2px);
             box-shadow: var(--shadow-md);
         }
-        #back-to-standard-btn:hover svg {
-            transform: translateX(3px);
+        #back-to-standard-btn:hover {
+            background: var(--accent-secondary-hover);
+            transform: translateY(-2px);
+            box-shadow: var(--shadow-lg);
         }
         
         /* --- Modal Styles --- */
@@ -187,30 +179,29 @@
         .speaker-card .speaker-name { padding: 0.8rem 0.4rem 0.2rem; font-weight: 600; font-size: 0.95em; color: var(--text-secondary); transition: color 0.2s; }
         .speaker-card input[type="radio"]:checked + .speaker-visual { border-color: var(--accent-secondary); box-shadow: 0 0 25px -5px var(--accent-secondary-glow); transform: scale(1.05); }
 
-        /* --- UPDATED Special Card for Voice Cloning --- */
+        /* --- MODIFIED: Special Card for Voice Cloning --- */
         .special-card .speaker-visual {
-            background: linear-gradient(145deg, #6b8cff, var(--accent-primary));
+            background: linear-gradient(135deg, var(--accent-clone-start), var(--accent-clone-end));
             display: flex;
             flex-direction: column;
             align-items: center;
             justify-content: center;
             height: 130px;
             color: white;
-            border: 2px solid rgba(255, 255, 255, 0.2);
-            box-shadow: 0 4px 15px rgba(74, 108, 250, 0.2);
+            border-color: transparent;
+            text-align: center;
         }
         .special-card .speaker-visual svg {
-            width: 44px;
-            height: 44px;
-            margin-bottom: 10px;
-            opacity: 0.9;
+            width: 48px;
+            height: 48px;
+            margin-bottom: 8px;
         }
-        .special-card .speaker-visual .card-title {
-            font-weight: 700;
+        .special-card .speaker-visual span {
+            font-weight: 600;
             font-size: 1.1em;
         }
         .special-card:hover .speaker-visual {
-            box-shadow: 0 8px 25px -5px var(--accent-primary-glow), 0 0 15px rgba(255,255,255,0.5) inset;
+            box-shadow: 0 8px 25px -5px rgba(74, 108, 250, 0.3), 0 8px 25px -5px rgba(160, 82, 232, 0.3);
         }
         .special-card .speaker-name {
             font-weight: 700;
@@ -223,7 +214,7 @@
             .app-header h1 { font-size: 2em; }
             #standard-view #selected-speaker-card { flex-direction: column; padding: 1rem; border-radius: var(--radius-card); }
             #standard-view #selected-speaker-card img { margin-left: 0; margin-bottom: 1rem; }
-            #back-to-standard-btn { top: 1.5rem; left: 1.5rem; padding: 8px 16px; font-size: 0.9em; }
+            #back-to-standard-btn { top: 1rem; left: 1rem; padding: 8px 16px; font-size: 0.9em; }
         }
     </style>
 </head>
@@ -306,10 +297,7 @@
                 <p>متن دلخواه خود را با صدای خودتان یا هر صدای دیگری بشنوید.</p>
             </header>
             <main class="main-content">
-                 <button id="back-to-standard-btn" title="بازگشت به انتخاب گوینده">
-                     <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="19" y1="12" x2="5" y2="12"></line><polyline points="12 19 5 12 12 5"></polyline></svg>
-                     <span>برگشت به حالت گویندگان</span>
-                 </button>
+                 <button id="back-to-standard-btn">برگشت به حالت گویندگان</button>
                 <form id="voice-clone-form" onsubmit="return false;">
                      <div class="form-group">
                         <label for="text-input-clone">📝 متن اصلی</label>
@@ -405,6 +393,8 @@
 
 
     <script>
+    // NOTE: The JavaScript logic remains exactly the same as the previous version.
+    // The changes are purely in HTML and CSS.
     document.addEventListener('DOMContentLoaded', () => {
         // --- DATA ---
         const speakers = [
@@ -510,10 +500,11 @@
                 <div class="speaker-visual">
                     <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                         <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"></path>
-                        <path d="M19 10v2a7 7 0 0 1-14 0v-2"></path><line x1="12" y1="19" x2="12" y2="23"></line>
+                        <path d="M19 10v2a7 7 0 0 1-14 0v-2"></path>
+                        <line x1="12" y1="19" x2="12" y2="23"></line>
                         <line x1="8" y1="23" x2="16" y2="23"></line>
                     </svg>
-                    <span class="card-title">صدای شخصی</span>
+                    <span>صدای شخصی</span>
                 </div>
                 <div class="speaker-name">ساخت صدای اختصاصی</div>
             `;
