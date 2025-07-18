@@ -35,7 +35,7 @@
         @keyframes satellite-pulse-3 { from { transform: scale(0.7) translateX(50%); opacity: 0.6; } to { transform: scale(1.1) translateX(50%); opacity: 1; } }
 
         /* --- Base Styles --- */
-        html { scroll-behavior: smooth; } /* Added for smooth scrolling */
+        html { scroll-behavior: smooth; }
         body {
             font-family: var(--app-font); direction: rtl; background-color: var(--app-bg);
             color: var(--text-primary); font-size: 16px; line-height: 1.8; margin: 0;
@@ -221,7 +221,7 @@
                     <div class="form-group"><label for="prompt-input-clone">🗣️ توصیف لحن و احساس (اختیاری)</label><input type="text" id="prompt-input-clone" placeholder="مثال: با لحنی آرام و قصه‌گو"></div>
                     <div class="form-group">
                         <label>🎤 صدای اختصاصی مرجع</label><p class="label-subtitle">متن شما با صدایی که در اینجا آپلود می‌کنید خوانده می‌شود.</p><p class="input-description">یک فایل صوتی کوتاه (۳ تا ۹ ثانیه) با صدای واضح و بدون نویز آپلود کنید. کیفیت خروجی به کیفیت صدای ورودی وابسته است.</p>
-                        <label for="user-voice-input" class="upload-area" id="upload-area"><div class="upload-icon"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg></div><p>فایل صوتی خود را اینجا بکشید یا برای انتخاب کلیک کنید</p></label>
+                        <label class="upload-area" id="upload-area"><div class="upload-icon"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg></div><p>فایل صوتی خود را اینجا بکشید یا برای انتخاب کلیک کنید</p></label>
                         <input type="file" id="user-voice-input" accept="audio/*" style="display: none;"><div id="file-preview"><div id="file-info"><button type="button" class="preview-play-btn"><svg viewBox="0 0 24 24" class="play-icon-preview"><path d="M8 5v14l11-7z"></path></svg><svg viewBox="0 0 24 24" class="pause-icon-preview"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"></path></svg></button><span id="file-name"></span></div><button type="button" id="remove-file-btn" title="حذف فایل">×</button></div><audio id="audio-preview" style="display:none;"></audio>
                     </div>
                     <div class="form-group"><label for="temperature-slider-clone">🌡️ خلاقیت و پویایی صدا</label><div class="slider-container"><input type="range" id="temperature-slider-clone" class="temperature-slider" min="0.1" max="1.5" step="0.05" value="0.9"><span id="temperature-value-clone" class="temperature-value">0.9</span></div></div>
@@ -248,7 +248,7 @@
     <script>
     document.addEventListener('DOMContentLoaded', () => {
         // --- DATA ---
-        const speakers = [ { id: "Charon", name: "شهاب (مرد)", desc: "صدایی قدرتمند و رسا", imgUrl: "https://uploadkon.ir/uploads/a18705_25IMG-۲۰۲۵۰۷۰۵-۱۱۰۵۴۹.jpg" }, { id: "Zephyr", name: "آوا (زن)", desc: "لطیف و دلنشین", imgUrl: "https://uploadkon.ir/uploads/029605_25IMG-۲۰۲۵۰۷۰۵-۱۱۱۲۵۲.jpg" }, { id: "Achird", name: "نوید (مرد)", desc: "جوان و پرانرژی", imgUrl: "https://uploadkon.ir/uploads/697e05_25IMG-۲۰۲۵۰۶۰۹-۰۶۴۶۳۷.jpg" }, { id: "Zubenelgenubi", name: "آرمان (مرد)", desc: "گرم و صمیمی", imgUrl: "https://uploadkon.ir/uploads/a8a705_25IMG-۲۰۲۵۰۷۰۵-۱۱۱۶۲۹.jpg" }, { id: "Vindemiatrix", name: "مهسا (زن)", desc: "باوقار و رسمی", imgUrl: "https://uploadkon.ir/uploads/d74d05_25IMG-۲۰۲۵۰۷۰۵-۱۱۱۸۳۸.jpg" }, { id: "Sadachbia", name: "سامان (مرد)", desc: "شاداب و پویا", imgUrl: "https://uploadkon.ir/uploads/580205_25IMG-۲۰۲۵۰۷۰۵-۱۱۳۳۳۰.jpg" }, { id: "Sadaltager", name: "آرش (مرد)", desc: "مطمئن و تاثیرگذار", imgUrl: "https://uploadkon.ir/uploads/c4db05_25IMG-۲۰۲۵۰۷۰۵-۱۱۳۵۰۰.jpg" }, { id: "Sulafat", name: "شبنم (زن)", desc: "آرام و متین", imgUrl: "https://uploadkon.ir/uploads/995005_25IMG-۲۰۲۵۰۷۰۵-۱۱۳۶۱۱.jpg" }, { id: "Laomedeia", name: "سحر (زن)", desc: "دوستانه و گیرا", imgUrl: "https://uploadkon.ir/uploads/660705_25IMG-۲۰۲۵۰۷۰۵-۱۱۳۷54.jpg" }, { id: "Achernar", name: "مریم (زن)", desc: "حرفه‌ای و واضح", imgUrl: "https://uploadkon.ir/uploads/4c2905_25IMG-۲۰۲۵۰۷۰۵-۱۱۴۰۳۶.jpg" }, { id: "Alnilam", name: "بهرام (مرد)", desc: "حماسی و نافذ", imgUrl: "https://uploadkon.ir/uploads/f0c205_25IMG-۲۰۲۵۰۷۰۵-۱۱۴۲۲۰.jpg" }, { id: "Schedar", name: "نیکان (مرد)", desc: "مهربان و شیرین", imgUrl: "https://uploadkon.ir/uploads/d37a05_25IMG-۲۰۲۵۰۷۰۵-۱۱۴۳۲۵.jpg" }, { id: "Gacrux", name: "فرناز (زن)", desc: "پخته و قابل اعتماد", imgUrl: "https://uploadkon.ir/uploads/cff705_25IMG-%DB%B2%DB%B0%DB%B2%DB%B5%DB%B0%DB%B7%DB%B0%DB%B5-%DB%B1%DB%B1%DB%B4%DB%B6%DB%B0%DB%B5.jpg" }, { id: "Pulcherrima", name: "سارا (زن)", desc: "جذاب و مدرن", imgUrl: "https://uploadkon.ir/uploads/acb105_25IMG-۲۰۲۵۰۷۰۵-۱۱۴۷۴۳.jpg" }, { id: "Umbriel", name: "مانی (مرد)", desc: "خلاق و متفاوت", imgUrl: "https://uploadkon.ir/uploads/68b505_25IMG-۲۰۲۵۰۷۰۵-۱۱۴۹۱۴.jpg" }, { id: "Algieba", name: "آرتین (مرد)", desc: "با اصالت و شیک", imgUrl: "https://uploadkon.ir/uploads/571005_25IMG-۲۰۲۵۰۷۰۵-۱۱۵۰۳۹.jpg" }, { id: "Despina", name: "دلنواز (زن)", desc: "هنری و احساسی", imgUrl: "https://uploadkon.ir/uploads/5d7805_25IMG-۲۰۲۵۰۷۰۵-۱۱۵۲۲۲.jpg" }, { id: "Erinome", name: "روژان (زن)", desc: "شفاف و گویا", imgUrl: "https://uploadkon.ir/uploads/aa8805_25IMG-۲۰۲۵۰۷۰۵-۱۱۵۳۴۹.jpg" }, { id: "Algenib", name: "امید (مرد)", desc: "انگیزه بخش و مثبت", imgUrl: "https://uploadkon.ir/uploads/a63c05_25IMG-۲۰۲۵۰۷۰۵-۱۱۵۹۲۱.jpg" }, { id: "Orus", name: "بردیا (مرد)", desc: "ورزشی و پرهیجان", imgUrl: "https://uploadkon.ir/uploads/8bc405_25IMG-۲۰۲۵۰۷۰۵-۱۲۱۴۳۳.jpg" }, { id: "Aoede", name: "ترانه (زن)", desc: "موزیکال و خوش‌آهنگ", imgUrl: "https://uploadkon.ir/uploads/9cb405_25IMG-۲۰۲۵۰۷۰۵-۱۲۱۸۵۰.jpg" }, { id: "Callirrhoe", name: "نیکو (زن)", desc: "روایتگر و قصه‌گو", imgUrl: "https://uploadkon.ir/uploads/ee5f05_25IMG-۲۰۲۵۰۷۰۵-۱۲۲۰۴۷.jpg" }, { id: "Autonoe", name: "هستی (زن)", desc: "طبیعی و خودمانی", imgUrl: "https://uploadkon.ir/uploads/9b0505_25IMG-۲۰۲۵۰۷۰۵-۱۲۲۲۲۲.jpg" }, { id: "Enceladus", name: "کامیار (مرد)", desc: "مصمم و جدی", imgUrl: "https://uploadkon.ir/uploads/127805_25IMG-۲۰۲۵۰۷۰۵-۱۲۲۴۱۴.jpg" }, { id: "Iapetus", name: "کیانوش (مرد)", desc: "درخشان و گیرا", imgUrl: "https://uploadkon.ir/uploads/c98b05_25IMG-۲۰۲۵۰۷۰۵-۱۲۲۶۰۵.jpg" }, { id: "Puck", name: "پویا (مرد)", desc: "بازیگوش و سرزنده", imgUrl: "https://uploadkon.ir/uploads/ca3605_25IMG-۲۰۲۵۰۷۰۵-۱۲۲۸۳۹.jpg" }, { id: "Kore", name: "مهتاب (زن)", desc: "نجواگر و آرامش‌بخش", imgUrl: "https://uploadkon.ir/uploads/b66605_25IMG-۲۰۲۵۰۷۰۵-۱۲۳۰۳۵.jpg" }, { id: "Fenrir", name: "سام (مرد)", desc: "جسور و بی‌باک", imgUrl: "https://uploadkon.ir/uploads/03c005_25IMG-۲۰۲۵۰۷۰۵-۱۲۳۴۱۳.jpg" }, { id: "Leda", name: "لیدا (زن)", desc: "کلاسیک و باوقار", imgUrl: "https://uploadkon.ir/uploads/710305_25IMG-۲۰۲۵۰۷۰۵-۱۲۳۷۳۱.jpg" }];
+        const speakers = [ { id: "Charon", name: "شهاب (مرد)", desc: "صدایی قدرتمند و رسا", imgUrl: "https://uploadkon.ir/uploads/a18705_25IMG-۲۰۲۵۰۷۰۵-۱۱۰۵۴۹.jpg" }, { id: "Zephyr", name: "آوا (زن)", desc: "لطیف و دلنشین", imgUrl: "https://uploadkon.ir/uploads/029605_25IMG-۲۰۲۵۰۷۰۵-۱۱۱۲۵۲.jpg" }, { id: "Achird", name: "نوید (مرد)", desc: "جوان و پرانرژی", imgUrl: "https://uploadkon.ir/uploads/697e05_25IMG-۲۰۲۵۰۶۰۹-۰۶۴۶۳۷.jpg" }, { id: "Zubenelgenubi", name: "آرمان (مرد)", desc: "گرم و صمیمی", imgUrl: "https://uploadkon.ir/uploads/a8a705_25IMG-۲۰۲۵۰۷۰۵-۱۱۱۶۲۹.jpg" }, { id: "Vindemiatrix", name: "مهسا (زن)", desc: "باوقار و رسمی", imgUrl: "https://uploadkon.ir/uploads/d74d05_25IMG-۲۰۲۵۰۷۰۵-۱۱۱۸۳۸.jpg" }, { id: "Sadachbia", name: "سامان (مرد)", desc: "شاداب و پویا", imgUrl: "https://uploadkon.ir/uploads/580205_25IMG-۲۰۲۵۰۷۰۵-۱۱۳۳۳۰.jpg" }, { id: "Sadaltager", name: "آرش (مرد)", desc: "مطمئن و تاثیرگذار", imgUrl: "https://uploadkon.ir/uploads/c4db05_25IMG-۲۰۲۵۰۷۰۵-۱۱۳۵۰۰.jpg" }, { id: "Sulafat", name: "شبنم (زن)", desc: "آرام و متین", imgUrl: "https://uploadkon.ir/uploads/995005_25IMG-۲۰۲۵۰۷۰۵-۱۱۳۶۱۱.jpg" }, { id: "Laomedeia", name: "سحر (زن)", desc: "دوستانه و گیرا", imgUrl: "https://uploadkon.ir/uploads/660705_25IMG-۲۰۲۵۰۷۰۵-۱۱۳۷۵۴.jpg" }, { id: "Achernar", name: "مریم (زن)", desc: "حرفه‌ای و واضح", imgUrl: "https://uploadkon.ir/uploads/4c2905_25IMG-۲۰۲۵۰۷۰۵-۱۱۴۰۳۶.jpg" }, { id: "Alnilam", name: "بهرام (مرد)", desc: "حماسی و نافذ", imgUrl: "https://uploadkon.ir/uploads/f0c205_25IMG-۲۰۲۵۰۷۰۵-۱۱۴۲۲۰.jpg" }, { id: "Schedar", name: "نیکان (مرد)", desc: "مهربان و شیرین", imgUrl: "https://uploadkon.ir/uploads/d37a05_25IMG-۲۰۲۵۰۷۰۵-۱۱۴۳۲۵.jpg" }, { id: "Gacrux", name: "فرناز (زن)", desc: "پخته و قابل اعتماد", imgUrl: "https://uploadkon.ir/uploads/cff705_25IMG-%DB%B2%DB%B0%DB%B2%DB%B5%DB%B0%DB%B7%DB%B0%DB%B5-%DB%B1%DB%B1%DB%B4%DB%B6%DB%B0%DB%B5.jpg" }, { id: "Pulcherrima", name: "سارا (زن)", desc: "جذاب و مدرن", imgUrl: "https://uploadkon.ir/uploads/acb105_25IMG-۲۰۲۵۰۷۰۵-۱۱۴۷۴۳.jpg" }, { id: "Umbriel", name: "مانی (مرد)", desc: "خلاق و متفاوت", imgUrl: "https://uploadkon.ir/uploads/68b505_25IMG-۲۰۲۵۰۷۰۵-۱۱۴۹۱۴.jpg" }, { id: "Algieba", name: "آرتین (مرد)", desc: "با اصالت و شیک", imgUrl: "https://uploadkon.ir/uploads/571005_25IMG-۲۰۲۵۰۷۰۵-۱۱۵۰۳۹.jpg" }, { id: "Despina", name: "دلنواز (زن)", desc: "هنری و احساسی", imgUrl: "https://uploadkon.ir/uploads/5d7805_25IMG-۲۰۲۵۰۷۰۵-۱۱۵۲۲۲.jpg" }, { id: "Erinome", name: "روژان (زن)", desc: "شفاف و گویا", imgUrl: "https://uploadkon.ir/uploads/aa8805_25IMG-۲۰۲۵۰۷۰۵-۱۱۵۳۴۹.jpg" }, { id: "Algenib", name: "امید (مرد)", desc: "انگیزه بخش و مثبت", imgUrl: "https://uploadkon.ir/uploads/a63c05_25IMG-۲۰۲۵۰۷۰۵-۱۱۵۹۲۱.jpg" }, { id: "Orus", name: "بردیا (مرد)", desc: "ورزشی و پرهیجان", imgUrl: "https://uploadkon.ir/uploads/8bc405_25IMG-۲۰۲۵۰۷۰۵-۱۲۱۴۳۳.jpg" }, { id: "Aoede", name: "ترانه (زن)", desc: "موزیکال و خوش‌آهنگ", imgUrl: "https://uploadkon.ir/uploads/9cb405_25IMG-۲۰۲۵۰۷۰۵-۱۲۱۸۵۰.jpg" }, { id: "Callirrhoe", name: "نیکو (زن)", desc: "روایتگر و قصه‌گو", imgUrl: "https://uploadkon.ir/uploads/ee5f05_25IMG-۲۰۲۵۰۷۰۵-۱۲۲۰۴۷.jpg" }, { id: "Autonoe", name: "هستی (زن)", desc: "طبیعی و خودمانی", imgUrl: "https://uploadkon.ir/uploads/9b0505_25IMG-۲۰۲۵۰۷۰۵-۱۲۲۲۲۲.jpg" }, { id: "Enceladus", name: "کامیار (مرد)", desc: "مصمم و جدی", imgUrl: "https://uploadkon.ir/uploads/127805_25IMG-۲۰۲۵۰۷۰۵-۱۲۲۴۱۴.jpg" }, { id: "Iapetus", name: "کیانوش (مرد)", desc: "درخشان و گیرا", imgUrl: "https://uploadkon.ir/uploads/c98b05_25IMG-۲۰۲۵۰۷۰۵-۱۲۲۶۰۵.jpg" }, { id: "Puck", name: "پویا (مرد)", desc: "بازیگوش و سرزنده", imgUrl: "https://uploadkon.ir/uploads/ca3605_25IMG-۲۰۲۵۰۷۰۵-۱۲۲۸۳۹.jpg" }, { id: "Kore", name: "مهتاب (زن)", desc: "نجواگر و آرامش‌بخش", imgUrl: "https://uploadkon.ir/uploads/b66605_25IMG-۲۰۲۵۰۷۰۵-۱۲۳۰۳۵.jpg" }, { id: "Fenrir", name: "سام (مرد)", desc: "جسور و بی‌باک", imgUrl: "https://uploadkon.ir/uploads/03c005_25IMG-۲۰۲۵۰۷۰۵-۱۲۳۴۱۳.jpg" }, { id: "Leda", name: "لیدا (زن)", desc: "کلاسیک و باوقار", imgUrl: "https://uploadkon.ir/uploads/710305_25IMG-۲۰۲۵۰۷۰۵-۱۲۳۷۳۱.jpg" }];
 
         // --- DOM Elements ---
         const standardView = document.getElementById('standard-view'), voiceCloneView = document.getElementById('voice-clone-view');
@@ -271,11 +271,9 @@
         };
         const showModal = (modal) => { 
             modal.classList.add('visible'); 
-            if (modal.id === 'speaker-modal') {
-                const speakerGrid = modal.querySelector('#speaker-grid');
-                if (speakerGrid) {
-                    speakerGrid.scrollTop = 0; // *** ریست اسکرول مودال انتخاب گوینده ***
-                }
+            const modalDialog = modal.querySelector('.modal-dialog');
+            if (modalDialog) {
+                modalDialog.scrollTop = 0; // *** ریست اسکرول مودال انتخاب گوینده ***
             }
         };
         const hideModal = (modal) => modal.classList.remove('visible');
@@ -325,7 +323,8 @@
             // 1. Draw all bars with inactive color first
             waveformCtx.fillStyle = inactiveColor;
             for (let i = 0; i < numBars; i++) {
-                const peak = audioPeaks[Math.floor(i * audioPeaks.length / numBars)] || 0;
+                const peakIndex = Math.floor((i / numBars) * audioPeaks.length);
+                const peak = audioPeaks[peakIndex] || 0;
                 const barH = peak * h;
                 const x = offset + i * totalW;
                 const y = (h - barH) / 2;
@@ -335,20 +334,17 @@
             // 2. Draw active portion with a gradient on top
             const activeFillEnd = progressRatio * w;
             if (activeFillEnd > 0) {
-                const gradientFadeWidth = 80; // From original code
+                const gradientFadeWidth = 80;
                 const gradientSolidStart = Math.max(0, activeFillEnd - gradientFadeWidth);
-
                 const activeGradient = waveformCtx.createLinearGradient(0, 0, w, 0);
                 activeGradient.addColorStop(0, activeColor);
                 activeGradient.addColorStop(gradientSolidStart / w, activeColor);
-                activeGradient.addColorStop(activeFillEnd / w, inactiveColor); // This creates the smooth fade effect
+                activeGradient.addColorStop(activeFillEnd / w, inactiveColor);
 
                 waveformCtx.fillStyle = activeGradient;
-                // Redraw the bars, filling them with the gradient. 
-                // globalCompositeOperation ensures drawing only affects existing pixels (bars).
-                waveformCtx.globalCompositeOperation = 'source-atop'; 
-                waveformCtx.fillRect(0, 0, w, h); // Fill the entire canvas area with the gradient
-                waveformCtx.globalCompositeOperation = 'source-over'; // Reset to default blending mode
+                waveformCtx.globalCompositeOperation = 'source-atop';
+                waveformCtx.fillRect(0, 0, w, h);
+                waveformCtx.globalCompositeOperation = 'source-over';
             }
         };
 
@@ -357,19 +353,17 @@
             try {
                 const buffer = await audioContext.decodeAudioData(await (await fetch(url)).arrayBuffer());
                 const data = buffer.getChannelData(0);
-                const samples = Math.floor(buffer.duration * 40); // Number of peaks to calculate
+                const samples = Math.floor(buffer.duration * 40);
                 const peaks = [];
                 const sampleSize = Math.floor(data.length / samples);
                 for (let i = 0; i < samples; i++) {
                     let max = 0;
                     const start = i * sampleSize;
-                    const end = Math.min(start + sampleSize, data.length);
-                    for (let j = start; j < end; j++) {
-                        const val = Math.abs(data[j]);
+                    for (let j = 0; j < sampleSize; j++) {
+                        const val = Math.abs(data[start + j]);
                         if (val > max) max = val;
                     }
-                    // Original code used maxPeak * 1.5, let's stick to that for visual fidelity
-                    peaks.push(Math.min(1, Math.max(0, max * 1.5))); 
+                    peaks.push(Math.min(1, Math.max(0, max * 1.5)));
                 }
                 audioPeaks = peaks;
             } catch(e) { console.error("Error processing waveform:", e); }
@@ -422,12 +416,15 @@
                     uploadArea.style.display = 'none'; 
                     filePreview.style.display = 'flex'; 
                     audioPreview.src = URL.createObjectURL(file); 
-                    userVoiceInput.value = ''; // این خط تضمین می‌کند که 'change' event دوباره برای همان فایل کار کند
                 } 
             };
+            uploadArea.addEventListener('click', () => {
+                userVoiceInput.value = ''; // این خط مهم‌ترین بخش است!
+                userVoiceInput.click();
+            });
             userVoiceInput.addEventListener('change', () => handleFileSelect(userVoiceInput.files[0])); 
             ['dragenter','dragover','dragleave','drop'].forEach(e=>uploadArea.addEventListener(e,p=>{p.preventDefault();p.stopPropagation();})); ['dragenter','dragover'].forEach(e=>uploadArea.addEventListener(e,()=>uploadArea.classList.add('drag-over'))); ['dragleave','drop'].forEach(e=>uploadArea.addEventListener(e,()=>uploadArea.classList.remove('drag-over'))); 
-            uploadArea.addEventListener('drop',e=>{userVoiceInput.files=e.dataTransfer.files;handleFileSelect(userVoiceInput.files[0]);}); 
+            uploadArea.addEventListener('drop',e=>{handleFileSelect(e.dataTransfer.files[0]);}); 
             removeFileBtn.addEventListener('click', () => { userVoiceInput.value = ''; uploadArea.style.display = 'block'; filePreview.style.display = 'none'; audioPreview.src = ''; }); 
             
             previewPlayBtn.addEventListener('click', () => audioPreview.paused ? audioPreview.play() : audioPreview.pause()); 
@@ -440,9 +437,13 @@
             const uploadToHf = async (file) => { const fd = new FormData(); fd.append("files", file); const res = await fetch(`${HF_API}upload`, { method: 'POST', body: fd }); const result = await res.json(); if (result && result[0]) return result[0]; throw new Error("آپلود فایل در Hugging Face ناموفق بود."); };
             const callVevoApi = (source, timbre, hash) => new Promise(async (resolve, reject) => { await fetch(`${HF_API}queue/join?`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ data: [{ path: source, url: `${HF_API}file=${source}`, meta: { _type: "gradio.FileData" } }, { path: timbre, url: `${HF_API}file=${timbre}`, meta: { _type: "gradio.FileData" } }], fn_index: 0, session_hash: hash }) }); const es = new EventSource(`${HF_API}queue/data?session_hash=${hash}`); es.onmessage = e => { const d = JSON.parse(e.data); if (d.msg === 'process_starts') loadingText.textContent = 'مرحله ۲: شبیه‌سازی صدا...'; else if (d.msg === 'process_completed') { es.close(); if (d.output.error) { if (String(d.output.error).includes('GPU quota')) reject(new Error('محدودیت GPU. برای استفاده مجدد، از اینترنت سیم‌کارت بدون فیلترشکن استفاده کرده و حالت هواپیما را یکبار روشن/خاموش کنید. این محدودیت معمولاً پس از چند ساعت برطرف می‌شود.')); else reject(new Error(`خطا در پردازش هوش مصنوعی: ${d.output.error}`)); } else if (d.output.data?.[0]?.path) resolve(`${HF_API}file=${d.output.data[0].path}`); else reject(new Error('پاسخ نهایی از سرور معتبر نبود.')); } else if (d.msg === 'queue_full') { es.close(); reject(new Error('صف پردازش Hugging Face پر است. لطفاً کمی بعد دوباره تلاش کنید.')); } }; es.onerror = () => { es.close(); reject(new Error('خطا در ارتباط با سرور Hugging Face.')); }; });
 
+            let lastSelectedFile = null;
             form.addEventListener('submit', async () => {
-                const text = textInput.value, userVoiceFile = userVoiceInput.files[0];
+                const text = textInput.value;
+                const userVoiceFile = userVoiceInput.files.length > 0 ? userVoiceInput.files[0] : lastSelectedFile;
                 if (!text.trim() || !userVoiceFile) { alert("لطفاً هم متن و هم فایل صوتی را وارد کنید."); return; }
+                lastSelectedFile = userVoiceFile;
+
                 showUIState('loading'); loadingText.textContent = 'مرحله ۱: تولید صدای اولیه...';
                 try {
                     const ttsBlob = await callTtsApi(text, promptInput.value, parseFloat(tempSlider.value));
