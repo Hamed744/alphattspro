@@ -248,7 +248,7 @@
     <script>
     document.addEventListener('DOMContentLoaded', () => {
         // --- DATA ---
-        const speakers = [ { id: "Charon", name: "شهاب (مرد)", desc: "صدایی قدرتمند و رسا", imgUrl: "https://uploadkon.ir/uploads/a18705_25IMG-۲۰۲۵۰۷۰۵-۱۱۰۵۴۹.jpg" }, { id: "Zephyr", name: "آوا (زن)", desc: "لطیف و دلنشین", imgUrl: "https://uploadkon.ir/uploads/029605_25IMG-۲۰۲۵۰۷۰۵-۱۱۱۲۵۲.jpg" }, { id: "Achird", name: "نوید (مرد)", desc: "جوان و پرانرژی", imgUrl: "https://uploadkon.ir/uploads/697e05_25IMG-۲۰۲۵۰۶۰۹-۰۶۴۶۳۷.jpg" }, { id: "Zubenelgenubi", name: "آرمان (مرد)", desc: "گرم و صمیمی", imgUrl: "https://uploadkon.ir/uploads/a8a705_25IMG-۲۰۲۵۰۷۰۵-۱۱۱۶۲۹.jpg" }, { id: "Vindemiatrix", name: "مهسا (زن)", desc: "باوقار و رسمی", imgUrl: "https://uploadkon.ir/uploads/d74d05_25IMG-۲۰۲۵۰۷۰۵-۱۱۱۸۳۸.jpg" }, { id: "Sadachbia", name: "سامان (مرد)", desc: "شاداب و پویا", imgUrl: "https://uploadkon.ir/uploads/580205_25IMG-۲۰۲۵۰۷۰۵-۱۱۳۳۳۰.jpg" }, { id: "Sadaltager", name: "آرش (مرد)", desc: "مطمئن و تاثیرگذار", imgUrl: "https://uploadkon.ir/uploads/c4db05_25IMG-۲۰۲۵۰۷۰۵-۱۱۳۵۰۰.jpg" }, { id: "Sulafat", name: "شبنم (زن)", desc: "آرام و متین", imgUrl: "https://uploadkon.ir/uploads/995005_25IMG-۲۰۲۵۰۷۰۵-۱۱۳۶۱۱.jpg" }, { id: "Laomedeia", name: "سحر (زن)", desc: "دوستانه و گیرا", imgUrl: "https://uploadkon.ir/uploads/660705_25IMG-۲۰۲۵۰۷۰۵-۱۱۳۷۵۴.jpg" }, { id: "Achernar", name: "مریم (زن)", desc: "حرفه‌ای و واضح", imgUrl: "https://uploadkon.ir/uploads/4c2905_25IMG-۲۰۲۵۰۷۰۵-۱۱۴۰۳۶.jpg" }, { id: "Alnilam", name: "بهرام (مرد)", desc: "حماسی و نافذ", imgUrl: "https://uploadkon.ir/uploads/f0c205_25IMG-۲۰۲۵۰۷۰۵-۱۱۴۲۲۰.jpg" }, { id: "Schedar", name: "نیکان (مرد)", desc: "مهربان و شیرین", imgUrl: "https://uploadkon.ir/uploads/d37a05_25IMG-۲۰۲۵۰۷۰۵-۱۱۴۳۲۵.jpg" }, { id: "Gacrux", name: "فرناز (زن)", desc: "پخته و قابل اعتماد", imgUrl: "https://uploadkon.ir/uploads/cff705_25IMG-%DB%B2%DB%B0%DB%B2%DB%B5%DB%B0%DB%B7%DB%B0%DB%B5-%DB%B1%DB%B1%DB%B۴%DB%B۶%DB%B۰%DB%B۵.jpg" }, { id: "Pulcherrima", name: "سارا (زن)", desc: "جذاب و مدرن", imgUrl: "https://uploadkon.ir/uploads/acb105_25IMG-۲۰۲۵۰۷۰۵-۱۱۴۷۴۳.jpg" }, { id: "Umbriel", name: "مانی (مرد)", desc: "خلاق و متفاوت", imgUrl: "https://uploadkon.ir/uploads/68b505_25IMG-۲۰۲۵۰۷۰۵-۱۱۴۹۱۴.jpg" }, { id: "Algieba", name: "آرتین (مرد)", desc: "با اصالت و شیک", imgUrl: "https://uploadkon.ir/uploads/571005_25IMG-۲۰۲۵۰۷۰۵-۱۱۵۰۳۹.jpg" }, { id: "Despina", name: "دلنواز (زن)", desc: "هنری و احساسی", imgUrl: "https://uploadkon.ir/uploads/5d7805_25IMG-۲۰۲۵۰۷۰۵-۱۱۵۲۲۲.jpg" }, { id: "Erinome", name: "روژان (زن)", desc: "شفاف و گویا", imgUrl: "https://uploadkon.ir/uploads/aa8805_25IMG-۲۰۲۵۰۷۰۵-۱۱۵۳۴۹.jpg" }, { id: "Algenib", name: "امید (مرد)", desc: "انگیزه بخش و مثبت", imgUrl: "https://uploadkon.ir/uploads/a63c05_25IMG-۲۰۲۵۰۷۰۵-۱۱۵۹۲۱.jpg" }, { id: "Orus", name: "بردیا (مرد)", desc: "ورزشی و پرهیجان", imgUrl: "https://uploadkon.ir/uploads/8bc405_25IMG-۲۰۲۵۰۷۰۵-۱۲۱۴۳۳.jpg" }, { id: "Aoede", name: "ترانه (زن)", desc: "موزیکال و خوش‌آهنگ", imgUrl: "https://uploadkon.ir/uploads/9cb405_25IMG-۲۰۲۵۰۷۰۵-۱۲۱۸۵۰.jpg" }, { id: "Callirrhoe", name: "نیکو (زن)", desc: "روایتگر و قصه‌گو", imgUrl: "https://uploadkon.ir/uploads/ee5f05_25IMG-۲۰۲۵۰۷۰۵-۱۲۲۰۴۷.jpg" }, { id: "Autonoe", name: "هستی (زن)", desc: "طبیعی و خودمانی", imgUrl: "https://uploadkon.ir/uploads/9b0505_25IMG-۲۰۲۵۰۷۰۵-۱۲۲۲۲۲.jpg" }, { id: "Enceladus", name: "کامیار (مرد)", desc: "مصمم و جدی", imgUrl: "https://uploadkon.ir/uploads/127805_25IMG-۲۰۲۵۰۷۰۵-۱۲۲۴۱۴.jpg" }, { id: "Iapetus", name: "کیانوش (مرد)", desc: "درخشان و گیرا", imgUrl: "https://uploadkon.ir/uploads/c98b05_25IMG-۲۰۲۵۰۷۰۵-۱۲۲۶۰۵.jpg" }, { id: "Puck", name: "پویا (مرد)", desc: "بازیگوش و سرزنده", imgUrl: "https://uploadkon.ir/uploads/ca3605_25IMG-۲۰۲۵۰۷۰۵-۱۲۲۸۳۹.jpg" }, { id: "Kore", name: "مهتاب (زن)", desc: "نجواگر و آرامش‌بخش", imgUrl: "https://uploadkon.ir/uploads/b66605_25IMG-۲۰۲۵۰۷۰۵-۱۲۳۰۳۵.jpg" }, { id: "Fenrir", name: "سام (مرد)", desc: "جسور و بی‌باک", imgUrl: "https://uploadkon.ir/uploads/03c005_25IMG-۲۰۲۵۰۷۰۵-۱۲۳۴۱۳.jpg" }, { id: "Leda", name: "لیدا (زن)", desc: "کلاسیک و باوقار", imgUrl: "https://uploadkon.ir/uploads/710305_25IMG-۲۰۲۵۰۷۰۵-۱۲۳۷۳۱.jpg" }];
+        const speakers = [ { id: "Charon", name: "شهاب (مرد)", desc: "صدایی قدرتمند و رسا", imgUrl: "https://uploadkon.ir/uploads/a18705_25IMG-۲۰۲۵۰۷۰۵-۱۱۰۵۴۹.jpg" }, { id: "Zephyr", name: "آوا (زن)", desc: "لطیف و دلنشین", imgUrl: "https://uploadkon.ir/uploads/029605_25IMG-۲۰۲۵۰۷۰۵-۱۱۱۲۵۲.jpg" }, { id: "Achird", name: "نوید (مرد)", desc: "جوان و پرانرژی", imgUrl: "https://uploadkon.ir/uploads/697e05_25IMG-۲۰۲۵۰۶۰۹-۰۶۴۶۳۷.jpg" }, { id: "Zubenelgenubi", name: "آرمان (مرد)", desc: "گرم و صمیمی", imgUrl: "https://uploadkon.ir/uploads/a8a705_25IMG-۲۰۲۵۰۷۰۵-۱۱۱۶۲۹.jpg" }, { id: "Vindemiatrix", name: "مهسا (زن)", desc: "باوقار و رسمی", imgUrl: "https://uploadkon.ir/uploads/d74d05_25IMG-۲۰۲۵۰۷۰۵-۱۱۱۸۳۸.jpg" }, { id: "Sadachbia", name: "سامان (مرد)", desc: "شاداب و پویا", imgUrl: "https://uploadkon.ir/uploads/580205_25IMG-۲۰۲۵۰۷۰۵-۱۱۳۳۳۰.jpg" }, { id: "Sadaltager", name: "آرش (مرد)", desc: "مطمئن و تاثیرگذار", imgUrl: "https://uploadkon.ir/uploads/c4db05_25IMG-۲۰۲۵۰۷۰۵-۱۱۳۵۰۰.jpg" }, { id: "Sulafat", name: "شبنم (زن)", desc: "آرام و متین", imgUrl: "https://uploadkon.ir/uploads/995005_25IMG-۲۰۲۵۰۷۰۵-۱۱۳۶۱۱.jpg" }, { id: "Laomedeia", name: "سحر (زن)", desc: "دوستانه و گیرا", imgUrl: "https://uploadkon.ir/uploads/660705_25IMG-۲۰۲۵۰۷۰۵-۱۱۳۷۵۴.jpg" }, { id: "Achernar", name: "مریم (زن)", desc: "حرفه‌ای و واضح", imgUrl: "https://uploadkon.ir/uploads/4c2905_25IMG-۲۰۲۵۰۷۰۵-۱۱۴۰۳۶.jpg" }, { id: "Alnilam", name: "بهرام (مرد)", desc: "حماسی و نافذ", imgUrl: "https://uploadkon.ir/uploads/f0c205_25IMG-۲۰۲۵۰۷۰۵-۱۱۴۲۲۰.jpg" }, { id: "Schedar", name: "نیکان (مرد)", desc: "مهربان و شیرین", imgUrl: "https://uploadkon.ir/uploads/d37a05_25IMG-۲۰۲۵۰۷۰۵-۱۱۴۳۲۵.jpg" }, { id: "Gacrux", name: "فرناز (زن)", desc: "پخته و قابل اعتماد", imgUrl: "https://uploadkon.ir/uploads/cff705_25IMG-%DB%B2%DB%B0%DB%B2%DB%B5%DB%B0%DB%B7%DB%B0%DB%B5-%DB%B1%DB%B1%DB%B4%DB%B6%DB%B0%DB%B5.jpg" }, { id: "Pulcherrima", name: "سارا (زن)", desc: "جذاب و مدرن", imgUrl: "https://uploadkon.ir/uploads/acb105_25IMG-۲۰۲۵۰۷۰۵-۱۱۴۷۴۳.jpg" }, { id: "Umbriel", name: "مانی (مرد)", desc: "خلاق و متفاوت", imgUrl: "https://uploadkon.ir/uploads/68b505_25IMG-۲۰۲۵۰۷۰۵-۱۱۴۹۱۴.jpg" }, { id: "Algieba", name: "آرتین (مرد)", desc: "با اصالت و شیک", imgUrl: "https://uploadkon.ir/uploads/571005_25IMG-۲۰۲۵۰۷۰۵-۱۱۵۰۳۹.jpg" }, { id: "Despina", name: "دلنواز (زن)", desc: "هنری و احساسی", imgUrl: "https://uploadkon.ir/uploads/5d7805_25IMG-۲۰۲۵۰۷۰۵-۱۱۵۲۲۲.jpg" }, { id: "Erinome", name: "روژان (زن)", desc: "شفاف و گویا", imgUrl: "https://uploadkon.ir/uploads/aa8805_25IMG-۲۰۲۵۰۷۰۵-۱۱۵۳۴۹.jpg" }, { id: "Algenib", name: "امید (مرد)", desc: "انگیزه بخش و مثبت", imgUrl: "https://uploadkon.ir/uploads/a63c05_25IMG-۲۰۲۵۰۷۰۵-۱۱۵۹۲۱.jpg" }, { id: "Orus", name: "بردیا (مرد)", desc: "ورزشی و پرهیجان", imgUrl: "https://uploadkon.ir/uploads/8bc405_25IMG-۲۰۲۵۰۷۰۵-۱۲۱۴۳۳.jpg" }, { id: "Aoede", name: "ترانه (زن)", desc: "موزیکال و خوش‌آهنگ", imgUrl: "https://uploadkon.ir/uploads/9cb405_25IMG-۲۰۲۵۰۷۰۵-۱۲۱۸۵۰.jpg" }, { id: "Callirrhoe", name: "نیکو (زن)", desc: "روایتگر و قصه‌گو", imgUrl: "https://uploadkon.ir/uploads/ee5f05_25IMG-۲۰۲۵۰۷۰۵-۱۲۲۰۴۷.jpg" }, { id: "Autonoe", name: "هستی (زن)", desc: "طبیعی و خودمانی", imgUrl: "https://uploadkon.ir/uploads/9b0505_25IMG-۲۰۲۵۰۷۰۵-۱۲۲۲۲۲.jpg" }, { id: "Enceladus", name: "کامیار (مرد)", desc: "مصمم و جدی", imgUrl: "https://uploadkon.ir/uploads/127805_25IMG-۲۰۲۵۰۷۰۵-۱۲۲۴۱۴.jpg" }, { id: "Iapetus", name: "کیانوش (مرد)", desc: "درخشان و گیرا", imgUrl: "https://uploadkon.ir/uploads/c98b05_25IMG-۲۰۲۵۰۷۰۵-۱۲۲۶۰۵.jpg" }, { id: "Puck", name: "پویا (مرد)", desc: "بازیگوش و سرزنده", imgUrl: "https://uploadkon.ir/uploads/ca3605_25IMG-۲۰۲۵۰۷۰۵-۱۲۲۸۳۹.jpg" }, { id: "Kore", name: "مهتاب (زن)", desc: "نجواگر و آرامش‌بخش", imgUrl: "https://uploadkon.ir/uploads/b66605_25IMG-۲۰۲۵۰۷۰۵-۱۲۳۰۳۵.jpg" }, { id: "Fenrir", name: "سام (مرد)", desc: "جسور و بی‌باک", imgUrl: "https://uploadkon.ir/uploads/03c005_25IMG-۲۰۲۵۰۷۰۵-۱۲۳۴۱۳.jpg" }, { id: "Leda", name: "لیدا (زن)", desc: "کلاسیک و باوقار", imgUrl: "https://uploadkon.ir/uploads/710305_25IMG-۲۰۲۵۰۷۰۵-۱۲۳۷۳۱.jpg" }];
 
         // --- DOM Elements ---
         const standardView = document.getElementById('standard-view'), voiceCloneView = document.getElementById('voice-clone-view');
@@ -298,7 +298,6 @@
             const speedBtn = playerContent.querySelector('.audio-speed-btn'); speedBtn.addEventListener('click', () => { currentPlaybackSpeedIndex = (currentPlaybackSpeedIndex + 1) % playbackSpeeds.length; mainAudioPlayer.playbackRate = playbackSpeeds[currentPlaybackSpeedIndex]; speedBtn.textContent = `${playbackSpeeds[currentPlaybackSpeedIndex]}x`; });
         }
         
-        // --- REFINED drawActiveWaveform for original visual style ---
         const drawActiveWaveform = () => {
             const activePlayerContent = standardView.style.display !== 'none' ? document.getElementById('audio-player-content-standard') : document.getElementById('audio-player-content-clone');
             const waveformCanvas = activePlayerContent.querySelector('.audio-waveform-canvas');
@@ -351,23 +350,23 @@
             try {
                 const response = await fetch(url);
                 const arrayBuffer = await response.arrayBuffer();
-                const buffer = await audioContext.decodeAudioData(arrayBuffer);
-                const data = buffer.getChannelData(0);
-                const samples = Math.floor(buffer.duration * 40);
+                const decodedBuffer = await audioContext.decodeAudioData(arrayBuffer);
+                const channelData = decodedBuffer.getChannelData(0);
+                const barWidth = 3; const barGap = 2; const totalBarAndGap = barWidth + barGap;
+                const numBars = Math.floor((document.querySelector('.audio-waveform')?.offsetWidth || 500) / totalBarAndGap);
+                const samplesPerBar = Math.floor(channelData.length / numBars);
                 const peaks = [];
-                const sampleSize = Math.floor(data.length / samples);
-                for (let i = 0; i < samples; i++) {
-                    let max = 0;
-                    const start = i * sampleSize;
-                    const end = Math.min(start + sampleSize, data.length);
-                    for (let j = start; j < end; j++) {
-                        const val = Math.abs(data[j]);
-                        if (val > max) max = val;
+                for (let i = 0; i < numBars; i++) {
+                    let maxPeak = 0;
+                    const start = i * samplesPerBar;
+                    for (let j = 0; j < samplesPerBar; j++) {
+                        const value = Math.abs(channelData[start + j]);
+                        if (value > maxPeak) maxPeak = value;
                     }
-                    peaks.push(Math.min(1, Math.max(0, max * 1.5)));
+                    peaks.push(Math.min(1, Math.max(0, maxPeak * 1.5)));
                 }
                 audioPeaks = peaks;
-            } catch(e) { console.error("Error processing waveform:", e); }
+            } catch (e) { console.error("Error processing waveform:", e); }
         };
 
         const updatePlayerUI = () => {
@@ -379,10 +378,7 @@
             document.querySelectorAll('.audio-total-time').forEach(s => s.textContent = isFinite(duration) ? formatTime(duration) : '0:00');
             requestAnimationFrame(drawActiveWaveform);
         };
-        mainAudioPlayer.addEventListener('loadedmetadata', async () => { 
-            await processAudioForWaveform(mainAudioPlayer.src); 
-            updatePlayerUI(); 
-        });
+        mainAudioPlayer.addEventListener('loadedmetadata', async () => { await processAudioForWaveform(mainAudioPlayer.src); updatePlayerUI(); });
         ['timeupdate', 'play', 'pause', 'ended'].forEach(e => mainAudioPlayer.addEventListener(e, updatePlayerUI));
         window.addEventListener('resize', updatePlayerUI);
 
