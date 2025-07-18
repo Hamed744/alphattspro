@@ -35,6 +35,7 @@
         @keyframes satellite-pulse-3 { from { transform: scale(0.7) translateX(50%); opacity: 0.6; } to { transform: scale(1.1) translateX(50%); opacity: 1; } }
 
         /* --- Base Styles --- */
+        html { scroll-behavior: smooth; }
         body {
             font-family: var(--app-font); direction: rtl; background-color: var(--app-bg);
             color: var(--text-primary); font-size: 16px; line-height: 1.8; margin: 0;
@@ -258,6 +259,7 @@
         const switchView = (to) => {
             if (to === 'clone') { voiceCloneView.style.display = 'block'; standardView.style.display = 'none'; } 
             else { standardView.style.display = 'block'; voiceCloneView.style.display = 'none'; }
+            window.scrollTo(0, 0); // *** اسکرول به بالای صفحه ***
         };
         
         // --- Modal & Speaker Logic ---
@@ -408,7 +410,7 @@
             let lastSelectedFile = null;
             const handleFileSelect = (file) => { 
                 if (file) { 
-                    lastSelectedFile = file; // Store the file object
+                    lastSelectedFile = file; 
                     fileNameSpan.textContent = file.name; 
                     uploadArea.style.display = 'none'; 
                     filePreview.style.display = 'flex'; 
@@ -416,7 +418,7 @@
                 } 
             };
             uploadArea.addEventListener('click', () => { userVoiceInput.value = ''; userVoiceInput.click(); });
-            userVoiceInput.addEventListener('change', () => handleFileSelect(userVoiceInput.files[0])); 
+            userVoiceInput.addEventListener('change', () => { if (userVoiceInput.files.length > 0) handleFileSelect(userVoiceInput.files[0]) }); 
             ['dragenter','dragover','dragleave','drop'].forEach(e=>uploadArea.addEventListener(e,p=>{p.preventDefault();p.stopPropagation();})); ['dragenter','dragover'].forEach(e=>uploadArea.addEventListener(e,()=>uploadArea.classList.add('drag-over'))); ['dragleave','drop'].forEach(e=>uploadArea.addEventListener(e,()=>uploadArea.classList.remove('drag-over'))); 
             uploadArea.addEventListener('drop',e=>{handleFileSelect(e.dataTransfer.files[0]);}); 
             removeFileBtn.addEventListener('click', () => { userVoiceInput.value = ''; lastSelectedFile = null; uploadArea.style.display = 'block'; filePreview.style.display = 'none'; audioPreview.src = ''; }); 
