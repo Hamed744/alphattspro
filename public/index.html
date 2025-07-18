@@ -256,23 +256,23 @@
         const changeSpeakerBtn = document.getElementById('change-speaker-btn'), selectedSpeakerCard = document.getElementById('selected-speaker-card'), selectedSpeakerImg = document.getElementById('selected-speaker-img'), selectedSpeakerName = document.getElementById('selected-speaker-name'), selectedSpeakerDesc = document.getElementById('selected-speaker-desc'), tempInfoIcon = document.getElementById('temp-info-icon'), backToStandardBtn = document.getElementById('back-to-standard-btn');
 
         // --- View Switching ---
-        const switchView = (to) => {
+        const switchView = (to, shouldScroll = false) => {
             if (to === 'clone') { voiceCloneView.style.display = 'block'; standardView.style.display = 'none'; } 
             else { standardView.style.display = 'block'; voiceCloneView.style.display = 'none'; }
-            window.scrollTo(0, 0); // *** اسکرول به بالای صفحه ***
+            if (shouldScroll) { window.scrollTo(0, 0); } // *** اسکرول هوشمند فقط در صورت نیاز ***
         };
         
         // --- Modal & Speaker Logic ---
-        const updateSelectedSpeakerDisplay = (speakerId) => { const speaker = speakers.find(s => s.id === speakerId) || speakers[0]; selectedSpeakerImg.src = speaker.imgUrl; selectedSpeakerName.textContent = speaker.name; selectedSpeakerDesc.textContent = speaker.desc; selectedSpeakerIdStorage.value = speaker.id; switchView('standard'); };
+        const updateSelectedSpeakerDisplay = (speakerId) => { const speaker = speakers.find(s => s.id === speakerId) || speakers[0]; selectedSpeakerImg.src = speaker.imgUrl; selectedSpeakerName.textContent = speaker.name; selectedSpeakerDesc.textContent = speaker.desc; selectedSpeakerIdStorage.value = speaker.id; switchView('standard', false); }; // No scroll on speaker change
         const createSpeakerCardsInModal = () => {
             speakerGridInModal.innerHTML = '';
             speakers.forEach((speaker) => { const card = document.createElement('label'); card.className = 'speaker-card'; card.innerHTML = `<input type="radio" name="modal_speaker_selection" value="${speaker.id}" ${speaker.id === selectedSpeakerIdStorage.value ? 'checked' : ''}><div class="speaker-visual"><img src="${speaker.imgUrl}" alt="${speaker.name}" loading="lazy"></div><div class="speaker-name">${speaker.name}</div>`; card.addEventListener('click', () => { updateSelectedSpeakerDisplay(speaker.id); hideModal(speakerModal); }); speakerGridInModal.appendChild(card); });
-            const customCard = document.createElement('div'); customCard.className = 'speaker-card special-card'; customCard.innerHTML = `<div class="speaker-visual"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor"><path d="M7 4V2H5V4H2v7h3v11h2V11h3v11h2V11h3V4h-3V2h-2v2H7zM4 6h16v3H4V6z"></path></svg></div><div class="speaker-name">ساخت صدای اختصاصی</div>`; customCard.addEventListener('click', () => { switchView('clone'); hideModal(speakerModal); }); speakerGridInModal.appendChild(customCard);
+            const customCard = document.createElement('div'); customCard.className = 'speaker-card special-card'; customCard.innerHTML = `<div class="speaker-visual"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor"><path d="M7 4V2H5V4H2v7h3v11h2V11h3v11h2V11h3V4h-3V2h-2v2H7zM4 6h16v3H4V6z"></path></svg></div><div class="speaker-name">ساخت صدای اختصاصی</div>`; customCard.addEventListener('click', () => { switchView('clone', true); hideModal(speakerModal); }); speakerGridInModal.appendChild(customCard);
         };
         const showModal = (modal) => { 
             modal.classList.add('visible'); 
             const modalDialog = modal.querySelector('.modal-dialog');
-            if (modalDialog && modalDialog.scrollTop > 0) { // *** ریست اسکرول مودال انتخاب گوینده ***
+            if (modalDialog && modal.id === 'speaker-modal') { // Only reset speaker modal scroll
                 modalDialog.scrollTop = 0; 
             }
         };
@@ -280,7 +280,7 @@
         
         [changeSpeakerBtn, selectedSpeakerCard].forEach(el => el.addEventListener('click', () => { createSpeakerCardsInModal(); showModal(speakerModal); }));
         tempInfoIcon.addEventListener('click', () => showModal(infoModal));
-        backToStandardBtn.addEventListener('click', () => switchView('standard'));
+        backToStandardBtn.addEventListener('click', () => switchView('standard', true));
         document.querySelectorAll('.modal-overlay').forEach(o => o.addEventListener('click', (e) => (e.target === o) && hideModal(o)));
         document.querySelectorAll('.close-modal-btn').forEach(b => b.addEventListener('click', () => hideModal(b.closest('.modal-overlay'))));
         document.addEventListener('keydown', (e) => e.key === 'Escape' && document.querySelectorAll('.modal-overlay.visible').forEach(hideModal));
@@ -410,7 +410,7 @@
             let lastSelectedFile = null;
             const handleFileSelect = (file) => { 
                 if (file) { 
-                    lastSelectedFile = file; 
+                    lastSelectedFile = file;
                     fileNameSpan.textContent = file.name; 
                     uploadArea.style.display = 'none'; 
                     filePreview.style.display = 'flex'; 
@@ -418,7 +418,7 @@
                 } 
             };
             uploadArea.addEventListener('click', () => { userVoiceInput.value = ''; userVoiceInput.click(); });
-            userVoiceInput.addEventListener('change', () => { if (userVoiceInput.files.length > 0) handleFileSelect(userVoiceInput.files[0]) }); 
+            userVoiceInput.addEventListener('change', (e) => handleFileSelect(e.target.files[0])); 
             ['dragenter','dragover','dragleave','drop'].forEach(e=>uploadArea.addEventListener(e,p=>{p.preventDefault();p.stopPropagation();})); ['dragenter','dragover'].forEach(e=>uploadArea.addEventListener(e,()=>uploadArea.classList.add('drag-over'))); ['dragleave','drop'].forEach(e=>uploadArea.addEventListener(e,()=>uploadArea.classList.remove('drag-over'))); 
             uploadArea.addEventListener('drop',e=>{handleFileSelect(e.dataTransfer.files[0]);}); 
             removeFileBtn.addEventListener('click', () => { userVoiceInput.value = ''; lastSelectedFile = null; uploadArea.style.display = 'block'; filePreview.style.display = 'none'; audioPreview.src = ''; }); 
