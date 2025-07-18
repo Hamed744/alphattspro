@@ -35,7 +35,6 @@
         @keyframes satellite-pulse-3 { from { transform: scale(0.7) translateX(50%); opacity: 0.6; } to { transform: scale(1.1) translateX(50%); opacity: 1; } }
 
         /* --- Base Styles --- */
-        html { scroll-behavior: smooth; }
         body {
             font-family: var(--app-font); direction: rtl; background-color: var(--app-bg);
             color: var(--text-primary); font-size: 16px; line-height: 1.8; margin: 0;
@@ -259,7 +258,6 @@
         const switchView = (to) => {
             if (to === 'clone') { voiceCloneView.style.display = 'block'; standardView.style.display = 'none'; } 
             else { standardView.style.display = 'block'; voiceCloneView.style.display = 'none'; }
-            window.scrollTo(0, 0); // *** اسکرول به بالای صفحه ***
         };
         
         // --- Modal & Speaker Logic ---
@@ -272,8 +270,8 @@
         const showModal = (modal) => { 
             modal.classList.add('visible'); 
             const modalDialog = modal.querySelector('.modal-dialog');
-            if (modalDialog) {
-                modalDialog.scrollTop = 0; // *** ریست اسکرول مودال انتخاب گوینده ***
+            if (modalDialog && modalDialog.scrollTop > 0) { // *** ریست اسکرول مودال انتخاب گوینده ***
+                modalDialog.scrollTop = 0; 
             }
         };
         const hideModal = (modal) => modal.classList.remove('visible');
@@ -320,7 +318,6 @@
             const numBars = Math.floor(w / totalW);
             const offset = (w - (numBars * totalW)) / 2;
 
-            // 1. Draw all bars with inactive color first
             waveformCtx.fillStyle = inactiveColor;
             for (let i = 0; i < numBars; i++) {
                 const peakIndex = Math.floor((i / numBars) * audioPeaks.length);
@@ -331,7 +328,6 @@
                 waveformCtx.fillRect(x, y, barW, barH);
             }
 
-            // 2. Draw active portion with a gradient on top
             const activeFillEnd = progressRatio * w;
             if (activeFillEnd > 0) {
                 const gradientFadeWidth = 80;
@@ -409,23 +405,21 @@
 
             const showUIState = (state, msg = '') => { generateBtn.disabled = state === 'loading'; btnSpinner.style.display = state === 'loading' ? 'inline-block' : 'none'; btnText.textContent = state === 'loading' ? 'در حال پردازش...' : 'خلق صدا با آلفا'; outputSection.classList.remove('has-content'); statusMessage.style.display = 'none'; loadingAnimation.style.display = 'none'; playerContent.style.display = 'none'; statusMessage.classList.remove('error'); if (state === 'initial') { statusMessage.textContent = 'صدای نهایی در اینجا نمایش داده می‌شود.'; statusMessage.style.display = 'block'; } else if (state === 'loading') { loadingAnimation.style.display = 'flex'; } else if (state === 'result') { playerContent.style.display = 'flex'; outputSection.classList.add('has-content'); } else if (state === 'error') { statusMessage.innerHTML = `<b>خطا:</b> ${msg}`; statusMessage.style.display = 'block'; statusMessage.classList.add('error'); } };
             
-            // --- فایل صوتی: رفع مشکل انتخاب نشدن بار اول ---
+            let lastSelectedFile = null;
             const handleFileSelect = (file) => { 
                 if (file) { 
+                    lastSelectedFile = file; // Store the file object
                     fileNameSpan.textContent = file.name; 
                     uploadArea.style.display = 'none'; 
                     filePreview.style.display = 'flex'; 
                     audioPreview.src = URL.createObjectURL(file); 
                 } 
             };
-            uploadArea.addEventListener('click', () => {
-                userVoiceInput.value = ''; // این خط مهم‌ترین بخش است!
-                userVoiceInput.click();
-            });
+            uploadArea.addEventListener('click', () => { userVoiceInput.value = ''; userVoiceInput.click(); });
             userVoiceInput.addEventListener('change', () => handleFileSelect(userVoiceInput.files[0])); 
             ['dragenter','dragover','dragleave','drop'].forEach(e=>uploadArea.addEventListener(e,p=>{p.preventDefault();p.stopPropagation();})); ['dragenter','dragover'].forEach(e=>uploadArea.addEventListener(e,()=>uploadArea.classList.add('drag-over'))); ['dragleave','drop'].forEach(e=>uploadArea.addEventListener(e,()=>uploadArea.classList.remove('drag-over'))); 
             uploadArea.addEventListener('drop',e=>{handleFileSelect(e.dataTransfer.files[0]);}); 
-            removeFileBtn.addEventListener('click', () => { userVoiceInput.value = ''; uploadArea.style.display = 'block'; filePreview.style.display = 'none'; audioPreview.src = ''; }); 
+            removeFileBtn.addEventListener('click', () => { userVoiceInput.value = ''; lastSelectedFile = null; uploadArea.style.display = 'block'; filePreview.style.display = 'none'; audioPreview.src = ''; }); 
             
             previewPlayBtn.addEventListener('click', () => audioPreview.paused ? audioPreview.play() : audioPreview.pause()); 
             audioPreview.addEventListener('play', () => { previewPlayIcon.style.display = 'none'; previewPauseIcon.style.display = 'block'; }); 
@@ -437,18 +431,15 @@
             const uploadToHf = async (file) => { const fd = new FormData(); fd.append("files", file); const res = await fetch(`${HF_API}upload`, { method: 'POST', body: fd }); const result = await res.json(); if (result && result[0]) return result[0]; throw new Error("آپلود فایل در Hugging Face ناموفق بود."); };
             const callVevoApi = (source, timbre, hash) => new Promise(async (resolve, reject) => { await fetch(`${HF_API}queue/join?`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ data: [{ path: source, url: `${HF_API}file=${source}`, meta: { _type: "gradio.FileData" } }, { path: timbre, url: `${HF_API}file=${timbre}`, meta: { _type: "gradio.FileData" } }], fn_index: 0, session_hash: hash }) }); const es = new EventSource(`${HF_API}queue/data?session_hash=${hash}`); es.onmessage = e => { const d = JSON.parse(e.data); if (d.msg === 'process_starts') loadingText.textContent = 'مرحله ۲: شبیه‌سازی صدا...'; else if (d.msg === 'process_completed') { es.close(); if (d.output.error) { if (String(d.output.error).includes('GPU quota')) reject(new Error('محدودیت GPU. برای استفاده مجدد، از اینترنت سیم‌کارت بدون فیلترشکن استفاده کرده و حالت هواپیما را یکبار روشن/خاموش کنید. این محدودیت معمولاً پس از چند ساعت برطرف می‌شود.')); else reject(new Error(`خطا در پردازش هوش مصنوعی: ${d.output.error}`)); } else if (d.output.data?.[0]?.path) resolve(`${HF_API}file=${d.output.data[0].path}`); else reject(new Error('پاسخ نهایی از سرور معتبر نبود.')); } else if (d.msg === 'queue_full') { es.close(); reject(new Error('صف پردازش Hugging Face پر است. لطفاً کمی بعد دوباره تلاش کنید.')); } }; es.onerror = () => { es.close(); reject(new Error('خطا در ارتباط با سرور Hugging Face.')); }; });
 
-            let lastSelectedFile = null;
             form.addEventListener('submit', async () => {
                 const text = textInput.value;
-                const userVoiceFile = userVoiceInput.files.length > 0 ? userVoiceInput.files[0] : lastSelectedFile;
-                if (!text.trim() || !userVoiceFile) { alert("لطفاً هم متن و هم فایل صوتی را وارد کنید."); return; }
-                lastSelectedFile = userVoiceFile;
+                if (!text.trim() || !lastSelectedFile) { alert("لطفاً هم متن و هم فایل صوتی را وارد کنید."); return; }
 
                 showUIState('loading'); loadingText.textContent = 'مرحله ۱: تولید صدای اولیه...';
                 try {
                     const ttsBlob = await callTtsApi(text, promptInput.value, parseFloat(tempSlider.value));
                     loadingText.textContent = 'در حال آپلود فایل‌ها به سرور...';
-                    const [hfTtsPath, hfUserVoicePath] = await Promise.all([ uploadToHf(new File([ttsBlob], "initial.wav")), uploadToHf(userVoiceFile) ]);
+                    const [hfTtsPath, hfUserVoicePath] = await Promise.all([ uploadToHf(new File([ttsBlob], "initial.wav")), uploadToHf(lastSelectedFile) ]);
                     const finalAudioUrl = await callVevoApi(hfTtsPath, hfUserVoicePath, Math.random().toString(36).substring(2, 11));
                     loadingText.textContent = 'در حال دریافت فایل نهایی...';
                     const finalAudioBlob = await (await fetch(finalAudioUrl)).blob();
