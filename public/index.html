@@ -405,10 +405,14 @@
         // --- DOM Elements ---
         const standardView = document.getElementById('standard-view');
         const voiceCloneView = document.getElementById('voice-clone-view');
+
+        // Shared Elements
         const speakerModal = document.getElementById('speaker-modal');
         const infoModal = document.getElementById('info-modal');
         const speakerGridInModal = document.getElementById('speaker-grid');
         const selectedSpeakerIdStorage = document.getElementById('selected_speaker_id_storage');
+
+        // Standard TTS View Elements
         const changeSpeakerBtn = document.getElementById('change-speaker-btn');
         const selectedSpeakerCard = document.getElementById('selected-speaker-card');
         const selectedSpeakerImg = document.getElementById('selected-speaker-img');
@@ -418,8 +422,14 @@
         const backToStandardBtn = document.getElementById('back-to-standard-btn');
 
         // --- View Switching Logic ---
-        const switchToStandardView = () => { voiceCloneView.style.display = 'none'; standardView.style.display = 'block'; };
-        const switchToCloneView = () => { standardView.style.display = 'none'; voiceCloneView.style.display = 'block'; };
+        const switchToStandardView = () => {
+            voiceCloneView.style.display = 'none';
+            standardView.style.display = 'block';
+        };
+        const switchToCloneView = () => {
+            standardView.style.display = 'none';
+            voiceCloneView.style.display = 'block';
+        };
         
         // --- Shared Modal & Speaker Logic ---
         const getSpeakerById = (id) => speakers.find(s => s.id === id) || speakers[0];
@@ -433,20 +443,43 @@
         };
         const createSpeakerCardsInModal = () => {
             speakerGridInModal.innerHTML = '';
+            
             speakers.forEach((speaker) => {
                 const cardLabel = document.createElement('label');
                 cardLabel.className = 'speaker-card';
-                cardLabel.innerHTML = `<input type="radio" name="modal_speaker_selection" value="${speaker.id}" ${speaker.id === selectedSpeakerIdStorage.value ? 'checked' : ''}><div class="speaker-visual"><img src="${speaker.imgUrl}" alt="${speaker.name}" loading="lazy"></div><div class="speaker-name">${speaker.name}</div>`;
-                cardLabel.addEventListener('click', () => { updateSelectedSpeakerDisplay(speaker.id); hideModal(speakerModal); });
+                cardLabel.setAttribute('for', `modal-speaker-${speaker.id}`);
+                const isChecked = speaker.id === selectedSpeakerIdStorage.value ? 'checked' : '';
+                cardLabel.innerHTML = `
+                    <input type="radio" name="modal_speaker_selection" value="${speaker.id}" id="modal-speaker-${speaker.id}" ${isChecked}>
+                    <div class="speaker-visual"><img src="${speaker.imgUrl}" alt="${speaker.name}" loading="lazy"></div>
+                    <div class="speaker-name">${speaker.name}</div>
+                `;
+                cardLabel.addEventListener('click', () => {
+                    updateSelectedSpeakerDisplay(speaker.id);
+                    hideModal(speakerModal);
+                });
                 speakerGridInModal.appendChild(cardLabel);
             });
+
             const customCard = document.createElement('div');
             customCard.className = 'speaker-card special-card';
-            customCard.innerHTML = `<div class="speaker-visual"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor"><path d="M7 4V2H5V4H2v7h3v11h2V11h3v11h2V11h3V4h-3V2h-2v2H7zM4 6h16v3H4V6z"></path></svg></div><div class="speaker-name">ساخت صدای اختصاصی</div>`;
-            customCard.addEventListener('click', () => { switchToCloneView(); hideModal(speakerModal); });
+            customCard.innerHTML = `
+                <div class="speaker-visual">
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor"><path d="M7 4V2H5V4H2v7h3v11h2V11h3v11h2V11h3V4h-3V2h-2v2H7zM4 6h16v3H4V6z"></path></svg>
+                </div>
+                <div class="speaker-name">ساخت صدای اختصاصی</div>
+            `;
+            customCard.addEventListener('click', () => {
+                switchToCloneView();
+                hideModal(speakerModal);
+            });
             speakerGridInModal.appendChild(customCard);
         };
-        const showModal = (modalElement) => { modalElement.classList.add('visible'); };
+        
+        const showModal = (modalElement) => {
+            modalElement.classList.add('visible');
+            setTimeout(() => modalElement.querySelector('button')?.focus(), 50);
+        };
         const hideModal = (modalElement) => modalElement.classList.remove('visible');
         
         changeSpeakerBtn.addEventListener('click', () => { createSpeakerCardsInModal(); showModal(speakerModal); });
@@ -464,55 +497,79 @@
         function createPlayerInstance(containerId) {
             const container = document.getElementById(containerId);
             const playerContent = container.querySelector('.audio-player-content');
-            playerContent.innerHTML = `<div class="audio-waveform-container"><span class="audio-time audio-current-time">0:00</span><div class="audio-waveform"><canvas class="audio-waveform-canvas"></canvas><div class="audio-waveform-dashed-line"></div></div><span class="audio-time audio-total-time">0:00</span></div><div class="audio-controls-group"><button type="button" class="audio-skip-btn backward"><svg viewBox="0 0 24 24"><path d="M11 16V8l-4 4 4 4zm4-12v16l7-8-7-8z"></path></svg></button><button type="button" class="audio-play-pause-btn-large"><svg viewBox="0 0 24 24" class="play-icon"><path d="M8 5v14l11-7z"></path></svg><svg viewBox="0 0 24 24" class="pause-icon" style="display:none;"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"></path></svg></button><button type="button" class="audio-skip-btn forward"><svg viewBox="0 0 24 24"><path d="M13 16V8l4 4-4 4zM9 4v16L2 12l7-8z"></path></svg></button></div><div class="audio-utility-controls"><button type="button" class="audio-volume-btn"><svg viewBox="0 0 24 24" class="volume-high-icon"><path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02zM14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77s-2.99-7.86-7-8.77z"></path></svg><svg viewBox="0 0 24 24" class="volume-mute-icon" style="display:none;"><path d="M7 9v6h4l5 5V4L11 9H7zM16.5 12c0-1.77-1.02-3.29-2.5-4.03v2.21l2.45 2.45c.03-.2.05-.41.05-.63zM19 12c0 .94-.23 1.82-.68 2.6L19 14.88c.45-.88.7-1.88.7-2.88 0-4.01-2.99-7.14-7-8.05v2.06c2.89.86 5 3.54 5 6.71zM4.55 4L2 6.55 9.45 14H7v6h4l5 5V14.55l4.05 4.05L22 18 12 8 4.55 4z"></path></svg></button><button type="button" class="audio-speed-btn">1x</button></div>`;
+            playerContent.innerHTML = `
+                <div class="audio-waveform-container">
+                    <span class="audio-time audio-current-time">0:00</span>
+                    <div class="audio-waveform"><canvas class="audio-waveform-canvas"></canvas><div class="audio-waveform-dashed-line"></div></div>
+                    <span class="audio-time audio-total-time">0:00</span>
+                </div>
+                <div class="audio-controls-group">
+                    <button type="button" class="audio-skip-btn backward"><svg viewBox="0 0 24 24"><path d="M11 16V8l-4 4 4 4zm4-12v16l7-8-7-8z"></path></svg></button>
+                    <button type="button" class="audio-play-pause-btn-large">
+                        <svg viewBox="0 0 24 24" class="play-icon"><path d="M8 5v14l11-7z"></path></svg>
+                        <svg viewBox="0 0 24 24" class="pause-icon" style="display:none;"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"></path></svg>
+                    </button>
+                    <button type="button" class="audio-skip-btn forward"><svg viewBox="0 0 24 24"><path d="M13 16V8l4 4-4 4zM9 4v16L2 12l7-8z"></path></svg></button>
+                </div>
+                <div class="audio-utility-controls">
+                    <button type="button" class="audio-volume-btn">
+                        <svg viewBox="0 0 24 24" class="volume-high-icon"><path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02zM14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77s-2.99-7.86-7-8.77z"></path></svg>
+                        <svg viewBox="0 0 24 24" class="volume-mute-icon" style="display:none;"><path d="M7 9v6h4l5 5V4L11 9H7zM16.5 12c0-1.77-1.02-3.29-2.5-4.03v2.21l2.45 2.45c.03-.2.05-.41.05-.63zM19 12c0 .94-.23 1.82-.68 2.6L19 14.88c.45-.88.7-1.88.7-2.88 0-4.01-2.99-7.14-7-8.05v2.06c2.89.86 5 3.54 5 6.71zM4.55 4L2 6.55 9.45 14H7v6h4l5 5V14.55l4.05 4.05L22 18 12 8 4.55 4z"></path></svg>
+                    </button>
+                    <button type="button" class="audio-speed-btn">1x</button>
+                </div>`;
             
             const audioPlayer = container.querySelector('.hidden-audio-player');
             const waveformCanvas = playerContent.querySelector('.audio-waveform-canvas');
             const waveformCtx = waveformCanvas.getContext('2d');
             const playPauseBtn = playerContent.querySelector('.audio-play-pause-btn-large');
+            const playIcon = playPauseBtn.querySelector('.play-icon');
+            const pauseIcon = playPauseBtn.querySelector('.pause-icon');
             let audioPeaks = [];
             const playbackSpeeds = [1.0, 1.25, 1.5, 0.75];
             let currentPlaybackSpeedIndex = 0;
 
             const drawWaveform = (progressRatio = 0) => {
-                const dpr = window.devicePixelRatio || 1; 
-                waveformCanvas.width = waveformCanvas.offsetWidth * dpr; 
-                waveformCanvas.height = waveformCanvas.offsetHeight * dpr; 
-                waveformCtx.scale(dpr, dpr); 
-                const width = waveformCanvas.offsetWidth; const height = waveformCanvas.offsetHeight; 
-                if (width === 0 || height === 0 || audioPeaks.length === 0) return; 
-                waveformCtx.clearRect(0, 0, width, height); 
-                const barWidth = 3; const barGap = 2; const totalBarAndGap = barWidth + barGap; 
-                const numBars = Math.floor(width / totalBarAndGap); 
-                const offset = (width - (numBars * totalBarAndGap)) / 2; 
-                const activeColor = getComputedStyle(document.documentElement).getPropertyValue('--waveform-color-active').trim(); 
-                const inactiveColor = getComputedStyle(document.documentElement).getPropertyValue('--waveform-color-inactive').trim();
+                const dpr = window.devicePixelRatio || 1;
+                waveformCanvas.width = waveformCanvas.offsetWidth * dpr;
+                waveformCanvas.height = waveformCanvas.offsetHeight * dpr;
+                waveformCtx.scale(dpr, dpr);
+                const width = waveformCanvas.offsetWidth;
+                const height = waveformCanvas.offsetHeight;
+                if (width === 0 || height === 0 || audioPeaks.length === 0) return;
+
+                waveformCtx.clearRect(0, 0, width, height);
+                const barWidth = 3; const barGap = 2; const totalBarAndGap = barWidth + barGap;
+                const numBars = Math.floor(width / totalBarAndGap);
+                const offset = (width - numBars * totalBarAndGap) / 2;
                 
-                // Draw inactive part first
+                const activeColor = getComputedStyle(document.documentElement).getPropertyValue('--waveform-color-active').trim();
+                const inactiveColor = getComputedStyle(document.documentElement).getPropertyValue('--waveform-color-inactive').trim();
+
+                // Draw all bars with inactive color first
                 waveformCtx.fillStyle = inactiveColor;
                 for (let i = 0; i < numBars; i++) {
-                    const peak = audioPeaks[i] || 0;
-                    const barHeight = peak * height;
+                    const peakIndex = Math.floor((i / numBars) * audioPeaks.length);
+                    const barHeight = (audioPeaks[peakIndex] || 0) * height;
                     const x = offset + i * totalBarAndGap;
                     const y = (height - barHeight) / 2;
                     waveformCtx.fillRect(x, y, barWidth, barHeight);
                 }
 
-                // Draw active part with gradient on top
-                const activeFillEnd = progressRatio * width;
-                if (activeFillEnd > 0) {
+                if (progressRatio > 0) {
+                    const activeWidth = progressRatio * width;
                     waveformCtx.save();
-                    waveformCtx.beginPath();
-                    waveformCtx.rect(0, 0, activeFillEnd, height);
+                    waveformCtx.rect(0, 0, activeWidth, height);
                     waveformCtx.clip();
                     
+                    // Draw active bars
                     waveformCtx.fillStyle = activeColor;
                     for (let i = 0; i < numBars; i++) {
-                         const peak = audioPeaks[i] || 0;
-                         const barHeight = peak * height;
-                         const x = offset + i * totalBarAndGap;
-                         const y = (height - barHeight) / 2;
-                         waveformCtx.fillRect(x, y, barWidth, barHeight);
+                         const peakIndex = Math.floor((i / numBars) * audioPeaks.length);
+                        const barHeight = (audioPeaks[peakIndex] || 0) * height;
+                        const x = offset + i * totalBarAndGap;
+                        const y = (height - barHeight) / 2;
+                        waveformCtx.fillRect(x, y, barWidth, barHeight);
                     }
                     waveformCtx.restore();
                 }
@@ -526,17 +583,17 @@
                     const arrayBuffer = await response.arrayBuffer();
                     const decodedBuffer = await audioContext.decodeAudioData(arrayBuffer);
                     const channelData = decodedBuffer.getChannelData(0);
-                    const numBars = Math.floor(waveformCanvas.offsetWidth / (3 + 2));
+                    const numBars = 200; // A fixed number of peaks for consistency
                     const samplesPerBar = Math.floor(channelData.length / numBars);
                     const peaks = [];
                     for(let i=0; i<numBars; i++) {
                         let maxPeak = 0;
                         const start = i * samplesPerBar;
                         for(let j=0; j<samplesPerBar; j++) {
-                            const value = Math.abs(channelData[start+j]);
+                            const value = Math.abs(channelData[start+j] || 0);
                             if (value > maxPeak) maxPeak = value;
                         }
-                        peaks.push(Math.min(1, maxPeak * 2));
+                        peaks.push(Math.min(1, maxPeak * 2)); // Amplify for better visuals
                     }
                     audioPeaks = peaks;
                     requestAnimationFrame(() => drawWaveform(0));
@@ -547,17 +604,22 @@
             };
             
             const updatePlayerUI = () => {
+                const audioPlayer = container.querySelector('.hidden-audio-player');
                 const isPlaying = !(audioPlayer.paused || audioPlayer.ended);
-                playPauseBtn.querySelector('.play-icon').style.display = isPlaying ? 'none' : 'block';
-                playPauseBtn.querySelector('.pause-icon').style.display = isPlaying ? 'block' : 'none';
+                playIcon.style.display = isPlaying ? 'none' : 'block';
+                pauseIcon.style.display = isPlaying ? 'block' : 'none';
                 const { currentTime, duration } = audioPlayer;
                 playerContent.querySelector('.audio-current-time').textContent = formatTime(currentTime);
                 if (isFinite(duration) && duration > 0) {
                     playerContent.querySelector('.audio-total-time').textContent = formatTime(duration);
                     requestAnimationFrame(() => drawWaveform(currentTime / duration));
+                } else {
+                    playerContent.querySelector('.audio-total-time').textContent = '0:00';
+                    requestAnimationFrame(() => drawWaveform(0));
                 }
             };
 
+            const audioPlayer = container.querySelector('.hidden-audio-player');
             playPauseBtn.addEventListener('click', () => audioPlayer.paused ? audioPlayer.play() : audioPlayer.pause());
             playerContent.querySelector('.audio-skip-btn.backward').addEventListener('click', () => audioPlayer.currentTime = Math.max(0, audioPlayer.currentTime - 5));
             playerContent.querySelector('.audio-skip-btn.forward').addEventListener('click', () => audioPlayer.currentTime = Math.min(audioPlayer.duration, audioPlayer.currentTime + 5));
@@ -576,11 +638,11 @@
             });
 
             audioPlayer.addEventListener('loadedmetadata', async () => {
-                updatePlayerUI();
                 await processAudioForWaveform(audioPlayer.src);
+                updatePlayerUI();
             });
             ['timeupdate', 'play', 'pause', 'ended'].forEach(e => audioPlayer.addEventListener(e, updatePlayerUI));
-            window.addEventListener('resize', () => { if(audioPlayer.src) updatePlayerUI(); });
+            window.addEventListener('resize', () => { if(audioPlayer.src) { updatePlayerUI(); } });
         }
 
         // --- STANDARD TTS LOGIC ---
@@ -589,6 +651,7 @@
             const textInput = view.querySelector('#text-input-standard');
             const promptInput = view.querySelector('#prompt-input-standard');
             const tempSlider = view.querySelector('#temperature-slider-standard');
+            const tempValueSpan = view.querySelector('#temperature-value-standard');
             const generateBtn = view.querySelector('#generate-btn-standard');
             const outputSection = view.querySelector('#output-section-standard');
             const statusMessage = view.querySelector('#status-message-standard');
@@ -605,54 +668,81 @@
                 charCount.textContent = len.toLocaleString('fa-IR');
                 charCount.style.color = len > MAX_CHARS ? 'red' : 'var(--accent-primary)';
             });
-            view.querySelector('#temperature-slider-standard').addEventListener('input', (e) => view.querySelector('#temperature-value-standard').textContent = e.target.value);
+            tempSlider.addEventListener('input', () => tempValueSpan.textContent = tempSlider.value);
             
             const showLoadingState = () => {
                 generateBtn.disabled = true;
                 generateBtn.innerHTML = `<svg aria-hidden="true" role="status" fill="currentColor" viewBox="0 0 100 101" style="animation: spin 1s linear infinite; width:1.2em; height:1.2em; margin-left: 0.5em;"><path d="M100 50.5908C100 78.2051 77.6142 100.591 50 100.591C22.3858 100.591 0 78.2051 0 50.5908C0 22.9766 22.3858 0.59082 50 0.59082C77.6142 0.59082 100 22.9766 100 50.5908ZM9.08144 50.5908C9.08144 73.1895 27.4013 91.5094 50 91.5094C72.5987 91.5094 90.9186 73.1895 90.9186 50.5908C90.9186 27.9921 72.5987 9.67226 50 9.67226C27.4013 9.67226 9.08144 27.9921 9.08144 50.5908Z" fill="#E5E7EB"/><path d="M93.9676 39.0409C96.393 38.4038 97.8624 35.9116 97.0079 33.5539C95.2932 28.8227 92.871 24.3692 89.8167 20.348C85.8452 15.1192 80.8826 10.7238 75.2124 7.41289C69.5422 4.10194 63.2754 1.94025 56.7698 1.05124C51.7666 0.367541 46.6976 0.446843 41.7345 1.27873C39.2613 1.69328 37.813 4.19778 38.4501 6.62326C39.0873 9.04874 41.5694 10.4717 44.0505 10.1071C47.8511 9.54855 51.7191 9.52689 55.5402 10.0492C60.8642 10.7766 65.9928 12.5457 70.6331 15.2552C75.2735 17.9648 79.3347 21.5619 82.5849 25.841C84.9175 28.9121 86.7997 32.2913 88.1811 35.8758C89.083 38.2158 91.5421 39.6781 93.9676 39.0409Z" fill="currentColor"/></svg> در حال پردازش...`;
-                playerContent.style.display = 'none'; outputSection.classList.remove('has-content'); statusMessage.style.display = 'none'; loadingAnimation.style.display = 'flex';
+                playerContent.style.display = 'none';
+                outputSection.classList.remove('has-content');
+                statusMessage.style.display = 'none';
+                loadingAnimation.style.display = 'flex';
             };
             const showResultState = (isSuccess, message = '') => {
                 loadingAnimation.style.display = 'none';
                 if (isSuccess) {
-                    playerContent.style.display = 'flex'; outputSection.classList.add('has-content');
+                    statusMessage.style.display = 'none';
+                    playerContent.style.display = 'flex';
+                    outputSection.classList.add('has-content');
                 } else {
-                    statusMessage.textContent = message || 'خطایی رخ داد. لطفاً دوباره تلاش کنید.'; statusMessage.style.display = 'block'; audioPlayer.src = '';
+                    statusMessage.textContent = message || 'خطایی رخ داد. لطفاً دوباره تلاش کنید.';
+                    statusMessage.style.display = 'block';
+                    playerContent.style.display = 'none';
+                    outputSection.classList.remove('has-content');
+                    audioPlayer.src = '';
                 }
-                generateBtn.disabled = false; generateBtn.innerHTML = '✨ خلق صدا با آلفا';
+                generateBtn.disabled = false;
+                generateBtn.innerHTML = '✨ خلق صدا با آلفا';
             };
             view.querySelector('#standard-tts-form').addEventListener('submit', async (e) => {
                 e.preventDefault();
                 showLoadingState();
-                if (!textInput.value.trim()) { showResultState(false, 'خطا: متن ورودی نمی‌تواند خالی باشد.'); return; }
-                if (textInput.value.length > MAX_CHARS) { showResultState(false, `خطا: طول متن بیش از ${MAX_CHARS.toLocaleString('fa-IR')} نویسه است.`); return; }
+                if (!textInput.value.trim()) {
+                    showResultState(false, 'خطا: متن ورودی نمی‌تواند خالی باشد.');
+                    return;
+                }
+                if (textInput.value.length > MAX_CHARS) {
+                    showResultState(false, `خطا: طول متن بیش از ${MAX_CHARS.toLocaleString('fa-IR')} نویسه است.`);
+                    return;
+                }
+                const payload = {
+                    text: textInput.value,
+                    prompt: promptInput.value,
+                    speaker: selectedSpeakerIdStorage.value,
+                    temperature: parseFloat(tempSlider.value)
+                };
                 try {
                     const response = await fetch('/api/generate', {
                         method: 'POST',
                         headers: {'Content-Type': 'application/json'},
-                        body: JSON.stringify({ text: textInput.value, prompt: promptInput.value, speaker: selectedSpeakerIdStorage.value, temperature: parseFloat(tempSlider.value) }),
+                        body: JSON.stringify(payload),
                     });
-                    if (!response.ok) throw new Error(await response.text() || `خطا از سرویس (کد: ${response.status})`);
-                    audioPlayer.src = URL.createObjectURL(await response.blob());
+                    if (!response.ok) {
+                        const errorText = await response.text();
+                        throw new Error(errorText || `خطا از سرویس (کد: ${response.status})`);
+                    }
+                    const audioBlob = await response.blob();
+                    audioPlayer.src = URL.createObjectURL(audioBlob);
                     showResultState(true);
-
-                } catch (error) { showResultState(false, error.message); }
+                } catch (error) {
+                    showResultState(false, error.message);
+                }
             });
 
             createPlayerInstance('output-section-standard');
-            playerContent.style.display = 'none'; loadingAnimation.style.display = 'none'; statusMessage.style.display = 'block';
+            statusMessage.style.display = 'block';
         })();
 
         // --- VOICE CLONE LOGIC ---
         (function() {
             const view = voiceCloneView;
-            const form = view.querySelector('#voice-clone-form');
             const generateBtn = view.querySelector('#generate-btn-clone');
             const btnText = generateBtn.querySelector('.btn-text');
             const btnSpinner = generateBtn.querySelector('.spinner');
             const textInput = view.querySelector('#text-input-clone');
             const promptInput = view.querySelector('#prompt-input-clone');
             const tempSlider = view.querySelector('#temperature-slider-clone');
+            const tempValueSpan = view.querySelector('#temperature-value-clone');
             const userVoiceInput = view.querySelector('#user-voice-input');
             const uploadArea = view.querySelector('#upload-area');
             const filePreview = view.querySelector('#file-preview');
@@ -666,28 +756,48 @@
             const playerContent = view.querySelector('#audio-player-content-clone');
             const audioPlayer = view.querySelector('#hidden-audio-player-clone');
             
-            const RENDER_API_PROXY = "/api/generate";
+            const RENDER_API_URL = "/api/generate";
             const HF_API_URL = "https://amphion-vevo.hf.space/gradio_api/";
 
             const showUIState = (state, message = '') => {
                 generateBtn.disabled = state === 'loading';
                 btnSpinner.style.display = state === 'loading' ? 'inline-block' : 'none';
                 btnText.textContent = state === 'loading' ? 'در حال پردازش...' : 'خلق صدا با آلفا';
+                
                 outputSection.classList.remove('has-content');
-                statusMessage.style.display = 'none'; loadingAnimation.style.display = 'none'; playerContent.style.display = 'none';
+                statusMessage.style.display = 'none';
+                loadingAnimation.style.display = 'none';
+                playerContent.style.display = 'none';
                 statusMessage.classList.remove('error');
-                if (state === 'initial') { statusMessage.textContent = 'صدای نهایی در اینجا نمایش داده می‌شود.'; statusMessage.style.display = 'block'; } 
-                else if (state === 'loading') { loadingAnimation.style.display = 'flex'; } 
-                else if (state === 'result') { playerContent.style.display = 'flex'; outputSection.classList.add('has-content'); }
-                else if (state === 'error') { statusMessage.innerHTML = `<b>خطا:</b> ${message}`; statusMessage.style.display = 'block'; statusMessage.classList.add('error'); }
+
+                if (state === 'initial') {
+                    statusMessage.textContent = 'صدای نهایی در اینجا نمایش داده می‌شود.';
+                    statusMessage.style.display = 'block';
+                } else if (state === 'loading') {
+                    loadingAnimation.style.display = 'flex';
+                } else if (state === 'result') {
+                    playerContent.style.display = 'flex';
+                    outputSection.classList.add('has-content');
+                } else if (state === 'error') {
+                    statusMessage.innerHTML = `<b>خطا:</b> ${message}`;
+                    statusMessage.style.display = 'block';
+                    statusMessage.classList.add('error');
+                }
             };
             
-            const handleFileSelect = (file) => { if (file) { fileNameSpan.textContent = file.name; uploadArea.style.display = 'none'; filePreview.style.display = 'flex'; audioPreview.src = URL.createObjectURL(file); } };
+            const handleFileSelect = (file) => {
+                if (file) {
+                    fileNameSpan.textContent = file.name;
+                    uploadArea.style.display = 'none';
+                    filePreview.style.display = 'flex';
+                    audioPreview.src = URL.createObjectURL(file);
+                }
+            };
             uploadArea.addEventListener('click', () => userVoiceInput.click());
             userVoiceInput.addEventListener('change', () => handleFileSelect(userVoiceInput.files[0]));
-            ['dragenter','dragover','dragleave','drop'].forEach(ev=>uploadArea.addEventListener(ev,e=>{e.preventDefault();e.stopPropagation();}));
-            ['dragenter','dragover'].forEach(ev=>uploadArea.addEventListener(ev,()=>uploadArea.classList.add('drag-over')));
-            ['dragleave','drop'].forEach(ev=>uploadArea.addEventListener(ev,()=>uploadArea.classList.remove('drag-over')));
+            ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(evName => uploadArea.addEventListener(evName, e => { e.preventDefault(); e.stopPropagation(); }));
+            ['dragenter', 'dragover'].forEach(evName => uploadArea.addEventListener(evName, () => uploadArea.classList.add('drag-over')));
+            ['dragleave', 'drop'].forEach(evName => uploadArea.addEventListener(evName, () => uploadArea.classList.remove('drag-over')));
             uploadArea.addEventListener('drop', e => { userVoiceInput.files = e.dataTransfer.files; handleFileSelect(userVoiceInput.files[0]); });
             removeFileBtn.addEventListener('click', () => { userVoiceInput.value = ''; uploadArea.style.display = 'block'; filePreview.style.display = 'none'; audioPreview.src = ''; });
             const previewPlayBtn = view.querySelector('.preview-play-btn');
@@ -695,17 +805,17 @@
             audioPreview.addEventListener('play', () => { previewPlayBtn.querySelector('.play-icon-preview').style.display = 'none'; previewPlayBtn.querySelector('.pause-icon-preview').style.display = 'block'; });
             audioPreview.addEventListener('pause', () => { previewPlayBtn.querySelector('.play-icon-preview').style.display = 'block'; previewPlayBtn.querySelector('.pause-icon-preview').style.display = 'none'; });
             audioPreview.addEventListener('ended', () => { previewPlayBtn.querySelector('.play-icon-preview').style.display = 'block'; previewPlayBtn.querySelector('.pause-icon-preview').style.display = 'none'; });
-            view.querySelector('#temperature-slider-clone').addEventListener('input', (e) => view.querySelector('#temperature-value-clone').textContent = e.target.value);
-
-            // --- API Calls for Voice Cloning ---
-            const callTtsApiViaProxy = async (text, prompt, temp) => {
-                const payload = { text, speaker: "Charon", temperature: temp, prompt }; // Using a default speaker
-                const response = await fetch(RENDER_API_PROXY, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
-                if (!response.ok) throw new Error(`سرویس تولید صدای اولیه با خطا مواجه شد: ${await response.text()}`);
+            tempSlider.addEventListener('input', () => tempValueSpan.textContent = tempSlider.value);
+            
+            const callTtsApi = async (text, prompt, temp) => {
+                const payload = { text, speaker: "Charon", temperature: temp, prompt };
+                const response = await fetch(RENDER_API_URL, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+                if (!response.ok) throw new Error(`سرویس تبدیل متن به صدا با خطا مواجه شد: ${await response.text()}`);
                 return response.blob();
             };
             const uploadFileToHf = async (file) => {
-                const formData = new FormData(); formData.append("files", file);
+                const formData = new FormData();
+                formData.append("files", file);
                 const response = await fetch(`${HF_API_URL}upload`, { method: 'POST', body: formData });
                 const result = await response.json();
                 if (result && result.length > 0) return result[0];
@@ -713,7 +823,11 @@
             };
             const callVevoApi = (sourcePath, timbrePath, sessionHash) => {
                 return new Promise(async (resolve, reject) => {
-                    await fetch(`${HF_API_URL}queue/join?`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ data: [ { path: sourcePath, url: `${HF_API_URL}file=${sourcePath}`, meta: { _type: "gradio.FileData" } }, { path: timbrePath, url: `${HF_API_URL}file=${timbrePath}`, meta: { _type: "gradio.FileData" } } ], fn_index: 0, session_hash: sessionHash }) });
+                    await fetch(`${HF_API_URL}queue/join?`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ data: [ { path: sourcePath, url: `${HF_API_URL}file=${sourcePath}`, meta: { _type: "gradio.FileData" } }, { path: timbrePath, url: `${HF_API_URL}file=${timbrePath}`, meta: { _type: "gradio.FileData" } } ], fn_index: 0, session_hash: sessionHash })
+                    });
                     const es = new EventSource(`${HF_API_URL}queue/data?session_hash=${sessionHash}`);
                     es.onmessage = (e) => {
                         const data = JSON.parse(e.data);
@@ -721,24 +835,34 @@
                         else if (data.msg === 'process_completed') {
                             es.close();
                             if (data.output.error) {
-                                if (typeof data.output.error === 'string' && data.output.error.includes('GPU quota')) reject(new Error('محدودیت GPU. برای استفاده مجدد،از اینترنت سیم کارت استفاده کنید فیلتر شکن را خاموش کرده، یک یا دو بار حالت هواپیما را روشن و خاموش کنید و بدون فیلتر شکن مجدداً امتحان نمایید و یا اگر از وای فای استفاده میکنید ip تغییر بدید این محدودیت بدون این کار چند ساعت بعد برداشته میشود.'));
-                                else reject(new Error(`خطا در پردازش هوش مصنوعی: ${data.output.error}`));
-                            } else if (data.output.data?.[0]?.path) resolve(`${HF_API_URL}file=${data.output.data[0].path}`);
-                            else reject(new Error('پاسخ نهایی از سرور معتبر نبود.'));
-                        } else if (data.msg === 'queue_full') { es.close(); reject(new Error('صف پردازش Hugging Face پر است. لطفاً کمی بعد دوباره تلاش کنید.')); }
+                                if (typeof data.output.error === 'string' && data.output.error.includes('GPU quota')) {
+                                     reject(new Error('محدودیت GPU. برای استفاده مجدد،از اینترنت سیم کارت استفاده کنید فیلتر شکن را خاموش کرده، یک یا دو بار حالت هواپیما را روشن و خاموش کنید و بدون فیلتر شکن مجدداً امتحان نمایید و یا اگر از وای فای استفاده میکنید ip تغییر بدید این محدودیت بدون این کار چند ساعت بعد برداشته میشود.'));
+                                } else {
+                                    reject(new Error(`خطا در پردازش هوش مصنوعی: ${data.output.error}`));
+                                }
+                            } else if (data.output.data?.[0]?.path) {
+                                resolve(`${HF_API_URL}file=${data.output.data[0].path}`);
+                            } else reject(new Error('پاسخ نهایی از سرور معتبر نبود.'));
+                        } else if (data.msg === 'queue_full') {
+                            es.close();
+                            reject(new Error('صف پردازش Hugging Face پر است. لطفاً کمی بعد دوباره تلاش کنید.'));
+                        }
                     };
                     es.onerror = () => { es.close(); reject(new Error('خطا در ارتباط با سرور Hugging Face.')); };
                 });
             };
 
-            form.addEventListener('submit', async () => {
+            view.querySelector('#voice-clone-form').addEventListener('submit', async () => {
+                const text = textInput.value;
                 const userVoiceFile = userVoiceInput.files[0];
-                if (!textInput.value.trim() || !userVoiceFile) { alert("لطفاً هم متن را وارد کنید و هم فایل صوتی خود را انتخاب نمایید."); return; }
-                
+                if (!text.trim() || !userVoiceFile) {
+                    alert("لطفاً هم متن را وارد کنید و هم فایل صوتی خود را انتخاب نمایید.");
+                    return;
+                }
                 showUIState('loading');
                 loadingText.textContent = 'مرحله ۱: تولید صدای اولیه...';
                 try {
-                    const ttsBlob = await callTtsApiViaProxy(textInput.value, promptInput.value, parseFloat(tempSlider.value));
+                    const ttsBlob = await callTtsApi(text, promptInput.value, parseFloat(tempSlider.value));
                     const ttsFile = new File([ttsBlob], "initial_tts.wav", { type: "audio/wav" });
                     
                     loadingText.textContent = 'در حال آپلود فایل‌ها به سرور...';
@@ -749,8 +873,9 @@
                     
                     audioPlayer.src = finalAudioUrl;
                     showUIState('result');
-
-                } catch (error) { showUIState('error', error.message); }
+                } catch (error) {
+                    showUIState('error', error.message);
+                }
             });
             
             createPlayerInstance('output-section-clone');
