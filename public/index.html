@@ -331,7 +331,6 @@
                 cardLabel.addEventListener('click', () => { updateSelectedSpeakerDisplay(speaker.id); hideModal(speakerModal); });
                 speakerGridInModal.appendChild(cardLabel);
             });
-
             const customCard = document.createElement('div');
             customCard.className = 'speaker-card special-card';
             customCard.innerHTML = `<div class="speaker-visual"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor"><path d="M7 4V2H5V4H2v7h3v11h2V11h3v11h2V11h3V4h-3V2h-2v2H7zM4 6h16v3H4V6z"></path></svg></div><div class="speaker-name">ساخت صدای اختصاصی</div>`;
@@ -357,17 +356,8 @@
         function createPlayerInstance(containerId) {
             const playerContent = document.getElementById(containerId);
             playerContent.innerHTML = `<div class="audio-waveform-container"><span class="audio-time audio-current-time">0:00</span><div class="audio-waveform"><canvas class="audio-waveform-canvas"></canvas><div class="audio-waveform-dashed-line"></div></div><span class="audio-time audio-total-time">0:00</span></div><div class="audio-controls-group"><button type="button" class="audio-skip-btn backward"><svg viewBox="0 0 24 24"><path d="M11 16V8l-4 4 4 4zm4-12v16l7-8-7-8z"></path></svg></button><button type="button" class="audio-play-pause-btn-large"><svg viewBox="0 0 24 24" class="play-icon"><path d="M8 5v14l11-7z"></path></svg><svg viewBox="0 0 24 24" class="pause-icon" style="display:none;"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"></path></svg></button><button type="button" class="audio-skip-btn forward"><svg viewBox="0 0 24 24"><path d="M13 16V8l4 4-4 4zM9 4v16L2 12l7-8z"></path></svg></button></div><div class="audio-utility-controls"><button type="button" class="audio-volume-btn"><svg viewBox="0 0 24 24" class="volume-high-icon"><path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02zM14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77s-2.99-7.86-7-8.77z"></path></svg><svg viewBox="0 0 24 24" class="volume-mute-icon" style="display:none;"><path d="M7 9v6h4l5 5V4L11 9H7zM16.5 12c0-1.77-1.02-3.29-2.5-4.03v2.21l2.45 2.45c.03-.2.05-.41.05-.63zM19 12c0 .94-.23 1.82-.68 2.6L19 14.88c.45-.88.7-1.88.7-2.88 0-4.01-2.99-7.14-7-8.05v2.06c2.89.86 5 3.54 5 6.71zM4.55 4L2 6.55 9.45 14H7v6h4l5 5V14.55l4.05 4.05L22 18 12 8 4.55 4z"></path></svg></button><button type="button" class="audio-speed-btn">1x</button></div>`;
-            const ui = {
-                waveformCanvas: playerContent.querySelector('.audio-waveform-canvas'),
-                playPauseBtn: playerContent.querySelector('.audio-play-pause-btn-large'),
-                playIcon: playerContent.querySelector('.play-icon'),
-                pauseIcon: playerContent.querySelector('.pause-icon'),
-                currentTimeSpan: playerContent.querySelector('.audio-current-time'),
-                totalTimeSpan: playerContent.querySelector('.audio-total-time')
-            };
-            ui.waveformCtx = ui.waveformCanvas.getContext('2d');
             
-            ui.playPauseBtn.addEventListener('click', () => mainAudioPlayer.paused ? mainAudioPlayer.play() : mainAudioPlayer.pause());
+            playerContent.querySelector('.audio-play-pause-btn-large').addEventListener('click', () => mainAudioPlayer.paused ? mainAudioPlayer.play() : mainAudioPlayer.pause());
             playerContent.querySelector('.audio-skip-btn.backward').addEventListener('click', () => mainAudioPlayer.currentTime = Math.max(0, mainAudioPlayer.currentTime - 5));
             playerContent.querySelector('.audio-skip-btn.forward').addEventListener('click', () => mainAudioPlayer.currentTime = Math.min(mainAudioPlayer.duration, mainAudioPlayer.currentTime + 5));
             const volumeBtn = playerContent.querySelector('.audio-volume-btn');
@@ -385,20 +375,20 @@
             });
         }
         
-        const drawWaveform = (ui) => {
-            if (!ui) return;
-            const { waveformCanvas, waveformCtx } = ui;
+        const drawWaveform = (activeCanvas) => {
+            if (!activeCanvas) return;
+            const waveformCtx = activeCanvas.getContext('2d');
             const { currentTime, duration } = mainAudioPlayer;
             const progressRatio = isFinite(duration) && duration > 0 ? currentTime / duration : 0;
             const dpr = window.devicePixelRatio || 1;
-            waveformCanvas.width = waveformCanvas.offsetWidth * dpr;
-            waveformCanvas.height = waveformCanvas.offsetHeight * dpr;
+            activeCanvas.width = activeCanvas.offsetWidth * dpr;
+            activeCanvas.height = activeCanvas.offsetHeight * dpr;
             waveformCtx.scale(dpr, dpr);
-            const width = waveformCanvas.offsetWidth;
-            const height = waveformCanvas.offsetHeight;
+            const width = activeCanvas.offsetWidth;
+            const height = activeCanvas.offsetHeight;
             if (width === 0 || height === 0 || !audioPeaks.length) return;
             waveformCtx.clearRect(0, 0, width, height);
-            const barWidth = 3; const barGap = 2; const totalBarAndGap = barWidth + barGap;
+            const barWidth = 3, barGap = 2, totalBarAndGap = barWidth + barGap;
             const numBars = Math.floor(width / totalBarAndGap);
             const offset = (width - (numBars * totalBarAndGap)) / 2;
             const activeColor = getComputedStyle(document.documentElement).getPropertyValue('--waveform-color-active').trim();
@@ -415,9 +405,7 @@
             const activeFillEnd = progressRatio * width;
             if (activeFillEnd > 0) {
                 waveformCtx.globalCompositeOperation = 'source-atop';
-                const gradient = waveformCtx.createLinearGradient(0, 0, width, 0);
-                gradient.addColorStop(0, activeColor);
-                waveformCtx.fillStyle = gradient;
+                waveformCtx.fillStyle = activeColor;
                 waveformCtx.fillRect(0, 0, activeFillEnd, height);
                 waveformCtx.globalCompositeOperation = 'source-over';
             }
@@ -428,9 +416,11 @@
             if(!url) return;
             if(!audioContext) audioContext = new (window.AudioContext || window.webkitAudioContext)();
             try {
+                // *** FIX: Fetch the audio data as an ArrayBuffer regardless of the URL type (blob or http) ***
                 const response = await fetch(url);
                 const arrayBuffer = await response.arrayBuffer();
                 const decodedBuffer = await audioContext.decodeAudioData(arrayBuffer);
+                
                 const channelData = decodedBuffer.getChannelData(0);
                 const samples = Math.floor(decodedBuffer.duration * 40);
                 const peaks = [];
@@ -447,7 +437,6 @@
             } catch(e) { console.error("Error processing waveform:", e); audioPeaks = []; }
         };
 
-        let activeUI = null;
         const updatePlayerUI = () => {
             const isPlaying = !(mainAudioPlayer.paused || mainAudioPlayer.ended);
             document.querySelectorAll('.play-icon').forEach(i => i.style.display = isPlaying ? 'none' : 'block');
@@ -455,15 +444,19 @@
             const { currentTime, duration } = mainAudioPlayer;
             document.querySelectorAll('.audio-current-time').forEach(s => s.textContent = formatTime(currentTime));
             document.querySelectorAll('.audio-total-time').forEach(s => s.textContent = isFinite(duration) ? formatTime(duration) : '0:00');
-            activeUI = standardView.style.display !== 'none' 
-                ? { waveformCanvas: document.getElementById('audio-player-content-standard').querySelector('.audio-waveform-canvas'), waveformCtx: document.getElementById('audio-player-content-standard').querySelector('.audio-waveform-canvas').getContext('2d') }
-                : { waveformCanvas: document.getElementById('audio-player-content-clone').querySelector('.audio-waveform-canvas'), waveformCtx: document.getElementById('audio-player-content-clone').querySelector('.audio-waveform-canvas').getContext('2d') };
-            requestAnimationFrame(() => drawWaveform(activeUI));
+            const activeCanvas = standardView.style.display !== 'none' 
+                ? document.getElementById('audio-player-content-standard').querySelector('.audio-waveform-canvas')
+                : document.getElementById('audio-player-content-clone').querySelector('.audio-waveform-canvas');
+            requestAnimationFrame(() => drawWaveform(activeCanvas));
         };
-        mainAudioPlayer.addEventListener('loadedmetadata', async () => {
+        
+        // This event now triggers the waveform processing correctly for all URL types.
+        mainAudioPlayer.addEventListener('loadstart', async () => {
+            if (!mainAudioPlayer.src) return;
             await processAudioForWaveform(mainAudioPlayer.src);
             updatePlayerUI();
         });
+        
         ['timeupdate', 'play', 'pause', 'ended'].forEach(e => mainAudioPlayer.addEventListener(e, updatePlayerUI));
         window.addEventListener('resize', updatePlayerUI);
 
