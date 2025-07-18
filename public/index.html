@@ -97,8 +97,6 @@
         .audio-volume-btn svg { width: 24px; height: 24px; fill: currentColor; }
         .audio-speed-btn { font-family: var(--app-font); font-size: 0.9em; font-weight: 600; background-color: var(--panel-bg); border: 1px solid var(--panel-border); border-radius: 8px; min-width: 40px; text-align: center; color: var(--text-primary); box-shadow: var(--shadow-sm); }
         .audio-speed-btn:hover { background-color: var(--input-bg); }
-        /* CHANGE: Unified hidden player with a single ID */
-        #hidden-audio-player { display: none !important; }
 
         /* --- Standard TTS View Specific Styles --- */
         #standard-view .char-counter-wrapper { font-size: 0.85em; color: var(--text-tertiary); text-align: left; margin-top: 0.75rem; padding: 0 0.2rem; }
@@ -167,7 +165,7 @@
         .speaker-card .speaker-name { padding: 0.8rem 0.4rem 0.2rem; font-weight: 600; font-size: 0.95em; color: var(--text-secondary); transition: color 0.2s; }
         .speaker-card input[type="radio"]:checked + .speaker-visual { border-color: var(--accent-secondary); box-shadow: 0 0 25px -5px var(--accent-secondary-glow); transform: scale(1.05); }
 
-        /* --- NEW Special Card for Voice Cloning --- */
+        /* --- Special Card for Voice Cloning --- */
         .special-card .speaker-visual {
             background: linear-gradient(135deg, hsl(230, 96%, 62%), hsl(230, 96%, 50%));
             display: flex; flex-direction: column; align-items: center; justify-content: center; height: 130px; color: white; border-color: transparent;
@@ -196,166 +194,63 @@
         <!-- ===== STANDARD TTS VIEW ===== -->
         <div id="standard-view">
             <header class="app-header">
-                <h1 id="main-header-title">مولد صدای هوشمند آلفا</h1>
-                <p id="main-header-subtitle">کیفیت استودیو، قدرت هوش مصنوعی. صدایی فراتر از انتظار خلق کنید.</p>
+                <h1>مولد صدای هوشمند آلفا</h1>
+                <p>کیفیت استودیو، قدرت هوش مصنوعی. صدایی فراتر از انتظار خلق کنید.</p>
             </header>
-
             <main class="main-content">
-                <form id="standard-tts-form">
-                    <div class="form-group">
-                        <label for="text-input-standard">📝 متن اصلی</label>
-                        <textarea id="text-input-standard" rows="5" placeholder="متن خود را برای تبدیل به گفتار اینجا وارد کنید..."></textarea>
-                        <div class="char-counter-wrapper">
-                            <span id="char-count">0</span> / <span id="char-max">50000</span> نویسه
-                        </div>
-                    </div>
-
-                    <div class="form-group">
-                        <label for="prompt-input-standard">🗣️ توصیف لحن و احساس (اختیاری)</label>
-                        <input type="text" id="prompt-input-standard" placeholder="مثال: با لحنی آرام و قصه‌گو">
-                    </div>
-
-                    <div class="form-group">
-                        <label>🎤 گوینده منتخب</label>
-                        <div id="selected-speaker-display">
-                            <div id="selected-speaker-card" title="برای تغییر گوینده کلیک کنید">
-                                <img id="selected-speaker-img" src="" alt="عکس گوینده">
-                                <div id="selected-speaker-info">
-                                    <h3 id="selected-speaker-name"></h3>
-                                    <p id="selected-speaker-desc"></p>
-                                </div>
-                            </div>
-                            <button type="button" id="change-speaker-btn">تغییر گوینده</button>
-                        </div>
-                    </div>
-
-                    <div class="form-group">
-                        <div class="label-with-info">
-                            <label for="temperature-slider-standard">🌡️ خلاقیت و پویایی صدا</label>
-                            <div class="info-icon" id="temp-info-icon" role="button" tabindex="0" aria-label="اطلاعات بیشتر">!</div>
-                        </div>
-                        <div class="slider-container">
-                            <input type="range" id="temperature-slider-standard" class="temperature-slider" min="0.1" max="1.5" step="0.05" value="0.9">
-                            <span id="temperature-value-standard" class="temperature-value">0.9</span>
-                        </div>
-                    </div>
-
-                    <button type="submit" id="generate-btn-standard" class="generate-btn">✨ خلق صدا با آلفا</button>
+                <form id="standard-tts-form" onsubmit="return false;">
+                    <div class="form-group"><label for="text-input-standard">📝 متن اصلی</label><textarea id="text-input-standard" rows="5" placeholder="متن خود را برای تبدیل به گفتار اینجا وارد کنید..."></textarea><div class="char-counter-wrapper"><span id="char-count">0</span> / <span id="char-max">50000</span> نویسه</div></div>
+                    <div class="form-group"><label for="prompt-input-standard">🗣️ توصیف لحن و احساس (اختیاری)</label><input type="text" id="prompt-input-standard" placeholder="مثال: با لحنی آرام و قصه‌گو"></div>
+                    <div class="form-group"><label>🎤 گوینده منتخب</label><div id="selected-speaker-display"><div id="selected-speaker-card" title="برای تغییر گوینده کلیک کنید"><img id="selected-speaker-img" src="" alt="عکس گوینده"><div id="selected-speaker-info"><h3 id="selected-speaker-name"></h3><p id="selected-speaker-desc"></p></div></div><button type="button" id="change-speaker-btn">تغییر گوینده</button></div></div>
+                    <div class="form-group"><div class="label-with-info"><label for="temperature-slider-standard">🌡️ خلاقیت و پویایی صدا</label><div class="info-icon" id="temp-info-icon" role="button" tabindex="0" aria-label="اطلاعات بیشتر">!</div></div><div class="slider-container"><input type="range" id="temperature-slider-standard" class="temperature-slider" min="0.1" max="1.5" step="0.05" value="0.9"><span id="temperature-value-standard" class="temperature-value">0.9</span></div></div>
+                    <button type="submit" id="generate-btn-standard" class="generate-btn"><span class="btn-text">✨ خلق صدا با آلفا</span><div class="spinner"></div></button>
                 </form>
-
                 <div id="output-section-standard" class="output-section">
                     <div id="status-message-standard" class="status-message">صدای تولید شده در اینجا ظاهر خواهد شد.</div>
                     <div id="loading-animation-wrapper-standard" class="loading-animation-wrapper">
-                        <!-- Content generated by JS -->
+                        <div class="orbital-loader"><div class="orbit"><div class="satellite"></div></div><div class="orbit"><div class="satellite"></div></div><div class="orbit"><div class="satellite"></div></div></div>
+                        <p class="loading-text">در حال پردازش هوشمند و تولید صدا...</p>
                     </div>
-                    <div id="audio-player-content-standard" class="audio-player-content">
-                        <!-- Player content will be generated by JS -->
-                    </div>
+                    <div id="audio-player-content-standard" class="audio-player-content"></div>
                 </div>
             </main>
         </div>
 
         <!-- ===== VOICE CLONE VIEW (Initially Hidden) ===== -->
         <div id="voice-clone-view">
-             <header class="app-header">
-                <h1>شبیه‌سازی صدای آلفا</h1>
-                <p>متن دلخواه خود را با صدای خودتان یا هر صدای دیگری بشنوید.</p>
-            </header>
+             <header class="app-header"><h1>شبیه‌سازی صدای آلفا</h1><p>متن دلخواه خود را با صدای خودتان یا هر صدای دیگری بشنوید.</p></header>
             <main class="main-content">
-                 <button id="back-to-standard-btn" title="بازگشت به انتخاب گوینده">
-                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
-                        <path fill-rule="evenodd" d="M7.793 2.232a.75.75 0 01-.025 1.06L3.622 7.25h10.128a.75.75 0 010 1.5H3.622l4.146 3.957a.75.75 0 01-1.036 1.086l-5.5-5.25a.75.75 0 010-1.086l5.5-5.25a.75.75 0 011.06.025z" clip-rule="evenodd" />
-                    </svg>
-                    <span>بازگشت به انتخاب گوینده</span>
-                </button>
+                 <button id="back-to-standard-btn" title="بازگشت به انتخاب گوینده"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M7.793 2.232a.75.75 0 01-.025 1.06L3.622 7.25h10.128a.75.75 0 010 1.5H3.622l4.146 3.957a.75.75 0 01-1.036 1.086l-5.5-5.25a.75.75 0 010-1.086l5.5-5.25a.75.75 0 011.06.025z" clip-rule="evenodd" /></svg><span>بازگشت به انتخاب گوینده</span></button>
                 <form id="voice-clone-form" onsubmit="return false;">
-                     <div class="form-group">
-                        <label for="text-input-clone">📝 متن اصلی</label>
-                        <textarea id="text-input-clone" placeholder="متن خود را برای تبدیل به گفتار اینجا وارد کنید..."></textarea>
-                    </div>
+                     <div class="form-group"><label for="text-input-clone">📝 متن اصلی</label><textarea id="text-input-clone" placeholder="متن خود را برای تبدیل به گفتار اینجا وارد کنید..."></textarea></div>
+                    <div class="form-group"><label for="prompt-input-clone">🗣️ توصیف لحن و احساس (اختیاری)</label><input type="text" id="prompt-input-clone" placeholder="مثال: با لحنی آرام و قصه‌گو"></div>
                     <div class="form-group">
-                        <label for="prompt-input-clone">🗣️ توصیف لحن و احساس (اختیاری)</label>
-                        <input type="text" id="prompt-input-clone" placeholder="مثال: با لحنی آرام و قصه‌گو">
+                        <label>🎤 صدای اختصاصی مرجع</label><p class="label-subtitle">متن شما با صدایی که در اینجا آپلود می‌کنید خوانده می‌شود.</p><p class="input-description">یک فایل صوتی کوتاه (۳ تا ۹ ثانیه) با صدای واضح و بدون نویز آپلود کنید. کیفیت خروجی به کیفیت صدای ورودی وابسته است.</p>
+                        <label for="user-voice-input" class="upload-area" id="upload-area"><div class="upload-icon"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg></div><p>فایل صوتی خود را اینجا بکشید یا برای انتخاب کلیک کنید</p></label>
+                        <input type="file" id="user-voice-input" accept="audio/*" style="display: none;"><div id="file-preview"><div id="file-info"><button type="button" class="preview-play-btn"><svg viewBox="0 0 24 24" class="play-icon-preview"><path d="M8 5v14l11-7z"></path></svg><svg viewBox="0 0 24 24" class="pause-icon-preview"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"></path></svg></button><span id="file-name"></span></div><button type="button" id="remove-file-btn" title="حذف فایل">×</button></div><audio id="audio-preview" style="display:none;"></audio>
                     </div>
-                    <div class="form-group">
-                        <label>🎤 صدای اختصاصی مرجع</label>
-                        <p class="label-subtitle">متن شما با صدایی که در اینجا آپلود می‌کنید خوانده می‌شود.</p>
-                        <p class="input-description">یک فایل صوتی کوتاه (۳ تا ۹ ثانیه) با صدای واضح و بدون نویز آپلود کنید. کیفیت خروجی به کیفیت صدای ورودی وابسته است. برای بهترین نتیجه، از صدای باکیفیت استفاده کنید.</p>
-                        <label for="user-voice-input" class="upload-area" id="upload-area">
-                            <div class="upload-icon">
-                                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">
-                                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
-                                    <polyline points="17 8 12 3 7 8"></polyline>
-                                    <line x1="12" y1="3" x2="12" y2="15"></line>
-                                </svg>
-                            </div>
-                            <p>فایل صوتی خود را اینجا بکشید یا برای انتخاب کلیک کنید</p>
-                        </label>
-                        <input type="file" id="user-voice-input" accept="audio/*" style="display: none;">
-                        <div id="file-preview">
-                            <div id="file-info">
-                                <button type="button" class="preview-play-btn">
-                                    <svg viewBox="0 0 24 24" class="play-icon-preview"><path d="M8 5v14l11-7z"></path></svg>
-                                    <svg viewBox="0 0 24 24" class="pause-icon-preview"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"></path></svg>
-                                </button>
-                                <span id="file-name"></span>
-                            </div>
-                            <button type="button" id="remove-file-btn" title="حذف فایل">×</button>
-                        </div>
-                        <audio id="audio-preview" style="display:none;"></audio>
-                    </div>
-                    <div class="form-group">
-                        <label for="temperature-slider-clone">🌡️ خلاقیت و پویایی صدا</label>
-                        <div class="slider-container">
-                            <input type="range" id="temperature-slider-clone" class="temperature-slider" min="0.1" max="1.5" step="0.05" value="0.9">
-                            <span id="temperature-value-clone" class="temperature-value">0.9</span>
-                        </div>
-                    </div>
-                    <button type="submit" id="generate-btn-clone" class="generate-btn">
-                        <span class="btn-text">خلق صدا با آلفا</span>
-                        <div class="spinner"></div>
-                    </button>
+                    <div class="form-group"><label for="temperature-slider-clone">🌡️ خلاقیت و پویایی صدا</label><div class="slider-container"><input type="range" id="temperature-slider-clone" class="temperature-slider" min="0.1" max="1.5" step="0.05" value="0.9"><span id="temperature-value-clone" class="temperature-value">0.9</span></div></div>
+                    <button type="submit" id="generate-btn-clone" class="generate-btn"><span class="btn-text">خلق صدا با آلفا</span><div class="spinner"></div></button>
                 </form>
                 <div id="output-section-clone" class="output-section">
                     <div id="status-message-clone" class="status-message">صدای نهایی در اینجا نمایش داده می‌شود.</div>
                      <div id="loading-animation-wrapper-clone" class="loading-animation-wrapper">
-                         <!-- Content generated by JS -->
+                        <div class="orbital-loader"><div class="orbit"><div class="satellite"></div></div><div class="orbit"><div class="satellite"></div></div><div class="orbit"><div class="satellite"></div></div></div>
+                        <p id="loading-text-clone" class="loading-text">در حال پردازش هوشمند...</p>
                     </div>
-                    <div id="audio-player-content-clone" class="audio-player-content">
-                         <!-- Player content will be generated by JS -->
-                    </div>
+                    <div id="audio-player-content-clone" class="audio-player-content"></div>
                 </div>
             </main>
         </div>
-
-        <!-- ===== SHARED HIDDEN AUDIO PLAYER ===== -->
-        <audio id="hidden-audio-player"></audio>
+        
+        <!-- === SHARED AUDIO ELEMENT for Download Compatibility === -->
+        <audio id="hidden-audio-player" style="display: none;"></audio>
 
     </div> <!-- End of .app-container -->
-    
+
     <!-- ===== MODALS (Shared between views) ===== -->
-    <div id="speaker-modal" class="modal-overlay">
-        <div class="modal-dialog">
-            <div class="modal-header">
-                <h2>گالری گویندگان آلفا</h2>
-                <button type="button" class="close-modal-btn" data-modal-id="speaker-modal">×</button>
-            </div>
-            <div id="speaker-grid"></div>
-        </div>
-    </div>
-    <div id="info-modal" class="modal-overlay">
-        <div class="modal-dialog" style="max-width: 520px;">
-            <div class="modal-header">
-                <h2>🌡️ خلاقیت و پویایی صدا</h2>
-                <button type="button" class="close-modal-btn" data-modal-id="info-modal">×</button>
-            </div>
-            <div>
-                 <p style="color: var(--text-secondary); line-height: 1.9;">این پارامتر، میزان "غیرقابل پیش‌بینی بودن" و تنوع در صدای خروجی را کنترل می‌کند.</p>
-                 <p><strong>مقادیر بالاتر (نزدیک به ۱.۵):</strong> صدایی بسیار متنوع، احساسی و پویا ایجاد می‌کند. ایده‌آل برای محتوای خلاقانه و هنری.</p>
-                 <p><strong>مقادیر پایین‌تر (نزدیک به ۰.۱):</strong> صدایی پایدار، یکنواخت و قابل پیش‌بینی‌تر تولید می‌کند. مناسب برای خوانش متون رسمی و خبری.</p>
-            </div>
-        </div>
-    </div>
+    <div id="speaker-modal" class="modal-overlay"><div class="modal-dialog"><div class="modal-header"><h2>گالری گویندگان آلفا</h2><button type="button" class="close-modal-btn" data-modal-id="speaker-modal">×</button></div><div id="speaker-grid"></div></div></div>
+    <div id="info-modal" class="modal-overlay"><div class="modal-dialog" style="max-width: 520px;"><div class="modal-header"><h2>🌡️ خلاقیت و پویایی صدا</h2><button type="button" class="close-modal-btn" data-modal-id="info-modal">×</button></div><div><p style="color: var(--text-secondary); line-height: 1.9;">این پارامتر، میزان "غیرقابل پیش‌بینی بودن" و تنوع در صدای خروجی را کنترل می‌کند.</p><p><strong>مقادیر بالاتر (نزدیک به ۱.۵):</strong> صدایی بسیار متنوع، احساسی و پویا ایجاد می‌کند. ایده‌آل برای محتوای خلاقانه و هنری.</p><p><strong>مقادیر پایین‌تر (نزدیک به ۰.۱):</strong> صدایی پایدار، یکنواخت و قابل پیش‌بینی‌تر تولید می‌کند. مناسب برای خوانش متون رسمی و خبری.</p></div></div></div>
     <input type="hidden" id="selected_speaker_id_storage" value="Charon">
 
     <script>
@@ -396,10 +291,15 @@
         // --- DOM Elements ---
         const standardView = document.getElementById('standard-view');
         const voiceCloneView = document.getElementById('voice-clone-view');
+        
+        // --- Shared Elements ---
+        const mainAudioPlayer = document.getElementById('hidden-audio-player');
         const speakerModal = document.getElementById('speaker-modal');
         const infoModal = document.getElementById('info-modal');
         const speakerGridInModal = document.getElementById('speaker-grid');
         const selectedSpeakerIdStorage = document.getElementById('selected_speaker_id_storage');
+
+        // Standard TTS View Elements
         const changeSpeakerBtn = document.getElementById('change-speaker-btn');
         const selectedSpeakerCard = document.getElementById('selected-speaker-card');
         const selectedSpeakerImg = document.getElementById('selected-speaker-img');
@@ -407,28 +307,10 @@
         const selectedSpeakerDesc = document.getElementById('selected-speaker-desc');
         const tempInfoIcon = document.getElementById('temp-info-icon');
         const backToStandardBtn = document.getElementById('back-to-standard-btn');
-        const unifiedHiddenPlayer = document.getElementById('hidden-audio-player'); // The one and only player
 
-        // --- App State & View Switching ---
-        let currentView = 'standard'; // 'standard' or 'clone'
-
-        const switchToStandardView = () => {
-            voiceCloneView.style.display = 'none';
-            standardView.style.display = 'block';
-            currentView = 'standard';
-            // Move player content to the correct view
-            document.getElementById('output-section-standard').appendChild(document.getElementById('audio-player-content-standard'));
-            document.getElementById('output-section-standard').appendChild(document.getElementById('loading-animation-wrapper-standard'));
-        };
-
-        const switchToCloneView = () => {
-            standardView.style.display = 'none';
-            voiceCloneView.style.display = 'block';
-            currentView = 'clone';
-             // Move player content to the correct view
-            document.getElementById('output-section-clone').appendChild(document.getElementById('audio-player-content-standard'));
-            document.getElementById('output-section-clone').appendChild(document.getElementById('loading-animation-wrapper-standard'));
-        };
+        // --- View Switching Logic ---
+        const switchToStandardView = () => { voiceCloneView.style.display = 'none'; standardView.style.display = 'block'; };
+        const switchToCloneView = () => { standardView.style.display = 'none'; voiceCloneView.style.display = 'block'; };
         
         // --- Shared Modal & Speaker Logic ---
         const getSpeakerById = (id) => speakers.find(s => s.id === id) || speakers[0];
@@ -445,17 +327,18 @@
             speakers.forEach((speaker) => {
                 const cardLabel = document.createElement('label');
                 cardLabel.className = 'speaker-card';
-                cardLabel.innerHTML = `<input type="radio" name="modal_speaker_selection" value="${speaker.id}"><div class="speaker-visual"><img src="${speaker.imgUrl}" alt="${speaker.name}" loading="lazy"></div><div class="speaker-name">${speaker.name}</div>`;
+                cardLabel.innerHTML = `<input type="radio" name="modal_speaker_selection" value="${speaker.id}" ${speaker.id === selectedSpeakerIdStorage.value ? 'checked' : ''}><div class="speaker-visual"><img src="${speaker.imgUrl}" alt="${speaker.name}" loading="lazy"></div><div class="speaker-name">${speaker.name}</div>`;
                 cardLabel.addEventListener('click', () => { updateSelectedSpeakerDisplay(speaker.id); hideModal(speakerModal); });
                 speakerGridInModal.appendChild(cardLabel);
             });
+
             const customCard = document.createElement('div');
             customCard.className = 'speaker-card special-card';
             customCard.innerHTML = `<div class="speaker-visual"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor"><path d="M7 4V2H5V4H2v7h3v11h2V11h3v11h2V11h3V4h-3V2h-2v2H7zM4 6h16v3H4V6z"></path></svg></div><div class="speaker-name">ساخت صدای اختصاصی</div>`;
             customCard.addEventListener('click', () => { switchToCloneView(); hideModal(speakerModal); });
             speakerGridInModal.appendChild(customCard);
         };
-        const showModal = (modalElement) => modalElement.classList.add('visible');
+        const showModal = (modalElement) => { modalElement.classList.add('visible'); setTimeout(() => modalElement.querySelector('button')?.focus(), 50); };
         const hideModal = (modalElement) => modalElement.classList.remove('visible');
         
         changeSpeakerBtn.addEventListener('click', () => { createSpeakerCardsInModal(); showModal(speakerModal); });
@@ -466,266 +349,169 @@
         document.querySelectorAll('.close-modal-btn').forEach(b => b.addEventListener('click', () => hideModal(document.getElementById(b.dataset.modalId))));
         document.addEventListener('keydown', (e) => (e.key === 'Escape') && document.querySelectorAll('.modal-overlay.visible').forEach(hideModal));
         
-        // --- UNIFIED Audio Player and Waveform Logic ---
-        let audioContext;
-        let audioPeaks = [];
+        // --- Generic Audio Player and Waveform Logic ---
+        let audioContext, audioPeaks = [], currentPlaybackSpeedIndex = 0;
+        const playbackSpeeds = [1.0, 1.25, 1.5, 0.75];
         const formatTime = (seconds) => { if (isNaN(seconds) || seconds < 0) return '0:00'; const m = Math.floor(seconds / 60); const s = Math.floor(seconds % 60); return `${m}:${s < 10 ? '0' : ''}${s}`; };
         
-        // Function to create and manage the single player instance
         function createPlayerInstance(containerId) {
-            const container = document.getElementById(containerId);
-            container.innerHTML = `
-                <div class="audio-waveform-container">
-                    <span class="audio-time audio-current-time">0:00</span>
-                    <div class="audio-waveform"><canvas class="audio-waveform-canvas"></canvas><div class="audio-waveform-dashed-line"></div></div>
-                    <span class="audio-time audio-total-time">0:00</span>
-                </div>
-                <div class="audio-controls-group">
-                    <button type="button" class="audio-skip-btn backward"><svg viewBox="0 0 24 24"><path d="M11 16V8l-4 4 4 4zm4-12v16l7-8-7-8z"></path></svg></button>
-                    <button type="button" class="audio-play-pause-btn-large">
-                        <svg viewBox="0 0 24 24" class="play-icon"><path d="M8 5v14l11-7z"></path></svg>
-                        <svg viewBox="0 0 24 24" class="pause-icon" style="display:none;"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"></path></svg>
-                    </button>
-                    <button type="button" class="audio-skip-btn forward"><svg viewBox="0 0 24 24"><path d="M13 16V8l4 4-4 4zM9 4v16L2 12l7-8z"></path></svg></button>
-                </div>
-                <div class="audio-utility-controls">
-                    <button type="button" class="audio-volume-btn">
-                        <svg viewBox="0 0 24 24" class="volume-high-icon"><path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02zM14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77s-2.99-7.86-7-8.77z"></path></svg>
-                        <svg viewBox="0 0 24 24" class="volume-mute-icon" style="display:none;"><path d="M7 9v6h4l5 5V4L11 9H7zM16.5 12c0-1.77-1.02-3.29-2.5-4.03v2.21l2.45 2.45c.03-.2.05-.41.05-.63zM19 12c0 .94-.23 1.82-.68 2.6L19 14.88c.45-.88.7-1.88.7-2.88 0-4.01-2.99-7.14-7-8.05v2.06c2.89.86 5 3.54 5 6.71zM4.55 4L2 6.55 9.45 14H7v6h4l5 5V14.55l4.05 4.05L22 18 12 8 4.55 4z"></path></svg>
-                    </button>
-                    <button type="button" class="audio-speed-btn">1x</button>
-                </div>`;
-            
-            const waveformCanvas = container.querySelector('.audio-waveform-canvas');
-            const waveformCtx = waveformCanvas.getContext('2d');
-            const playPauseBtn = container.querySelector('.audio-play-pause-btn-large');
-            const playIcon = playPauseBtn.querySelector('.play-icon');
-            const pauseIcon = playPauseBtn.querySelector('.pause-icon');
-            const playbackSpeeds = [1.0, 1.25, 1.5, 0.75];
-            let currentPlaybackSpeedIndex = 0;
-
-            const drawWaveform = (progressRatio = 0) => {
-                 const dpr = window.devicePixelRatio || 1; waveformCanvas.width = waveformCanvas.offsetWidth * dpr; waveformCanvas.height = waveformCanvas.offsetHeight * dpr; waveformCtx.scale(dpr, dpr); const width = waveformCanvas.offsetWidth; const height = waveformCanvas.offsetHeight; if (width === 0 || height === 0) return; waveformCtx.clearRect(0, 0, width, height); const barWidth = 3; const barGap = 2; const totalBarAndGap = barWidth + barGap; const numBars = Math.floor(width / totalBarAndGap); const offset = (width - (numBars * totalBarAndGap)) / 2; const activeColor = getComputedStyle(document.documentElement).getPropertyValue('--waveform-color-active').trim(); const inactiveColor = getComputedStyle(document.documentElement).getPropertyValue('--waveform-color-inactive').trim(); waveformCtx.fillStyle = inactiveColor; for (let i = 0; i < numBars; i++) { const peak = audioPeaks[i] || 0; const barHeight = peak * height; const x = offset + i * totalBarAndGap; const y = (height - barHeight) / 2; waveformCtx.fillRect(x, y, barWidth, barHeight); } const activeFillEnd = progressRatio * width; const gradientFadeWidth = 80; const gradientSolidStart = Math.max(0, activeFillEnd - gradientFadeWidth); const activeGradient = waveformCtx.createLinearGradient(0, 0, width, 0); activeGradient.addColorStop(0, activeColor); activeGradient.addColorStop(gradientSolidStart / width, activeColor); activeGradient.addColorStop(activeFillEnd / width, inactiveColor); waveformCtx.fillStyle = activeGradient; for (let i = 0; i < numBars; i++) { const peak = audioPeaks[i] || 0; const barHeight = peak * height; const x = offset + i * totalBarAndGap; const y = (height - barHeight) / 2; waveformCtx.fillRect(x, y, barWidth, barHeight); }
+            const playerContent = document.getElementById(containerId);
+            playerContent.innerHTML = `<div class="audio-waveform-container"><span class="audio-time audio-current-time">0:00</span><div class="audio-waveform"><canvas class="audio-waveform-canvas"></canvas><div class="audio-waveform-dashed-line"></div></div><span class="audio-time audio-total-time">0:00</span></div><div class="audio-controls-group"><button type="button" class="audio-skip-btn backward"><svg viewBox="0 0 24 24"><path d="M11 16V8l-4 4 4 4zm4-12v16l7-8-7-8z"></path></svg></button><button type="button" class="audio-play-pause-btn-large"><svg viewBox="0 0 24 24" class="play-icon"><path d="M8 5v14l11-7z"></path></svg><svg viewBox="0 0 24 24" class="pause-icon" style="display:none;"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"></path></svg></button><button type="button" class="audio-skip-btn forward"><svg viewBox="0 0 24 24"><path d="M13 16V8l4 4-4 4zM9 4v16L2 12l7-8z"></path></svg></button></div><div class="audio-utility-controls"><button type="button" class="audio-volume-btn"><svg viewBox="0 0 24 24" class="volume-high-icon"><path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02zM14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77s-2.99-7.86-7-8.77z"></path></svg><svg viewBox="0 0 24 24" class="volume-mute-icon" style="display:none;"><path d="M7 9v6h4l5 5V4L11 9H7zM16.5 12c0-1.77-1.02-3.29-2.5-4.03v2.21l2.45 2.45c.03-.2.05-.41.05-.63zM19 12c0 .94-.23 1.82-.68 2.6L19 14.88c.45-.88.7-1.88.7-2.88 0-4.01-2.99-7.14-7-8.05v2.06c2.89.86 5 3.54 5 6.71zM4.55 4L2 6.55 9.45 14H7v6h4l5 5V14.55l4.05 4.05L22 18 12 8 4.55 4z"></path></svg></button><button type="button" class="audio-speed-btn">1x</button></div>`;
+            const ui = {
+                waveformCanvas: playerContent.querySelector('.audio-waveform-canvas'),
+                playPauseBtn: playerContent.querySelector('.audio-play-pause-btn-large'),
+                playIcon: playerContent.querySelector('.play-icon'),
+                pauseIcon: playerContent.querySelector('.pause-icon'),
+                currentTimeSpan: playerContent.querySelector('.audio-current-time'),
+                totalTimeSpan: playerContent.querySelector('.audio-total-time')
             };
+            ui.waveformCtx = ui.waveformCanvas.getContext('2d');
             
-            const processAudioForWaveform = async (url) => {
-                if(!url) { audioPeaks = []; return; }
-                if(!audioContext) audioContext = new (window.AudioContext || window.webkitAudioContext)();
-                try {
-                    const response = await fetch(url);
-                    const arrayBuffer = await response.arrayBuffer();
-                    const decodedBuffer = await audioContext.decodeAudioData(arrayBuffer);
-                    const channelData = decodedBuffer.getChannelData(0);
-                    const numBars = Math.floor((waveformCanvas.offsetWidth || 300) / 5);
-                    const samplesPerBar = Math.floor(channelData.length / numBars);
-                    const peaks = [];
-                    for(let i=0; i<numBars; i++) {
-                        let maxPeak = 0;
-                        const start = i * samplesPerBar;
-                        for(let j=0; j<samplesPerBar; j++) {
-                            const value = Math.abs(channelData[start+j]);
-                            if (value > maxPeak) maxPeak = value;
-                        }
-                        peaks.push(Math.min(1, Math.max(0, maxPeak * 1.5)));
-                    }
-                    audioPeaks = peaks;
-                    requestAnimationFrame(() => drawWaveform(0));
-                } catch(e) {
-                    console.error("Error processing waveform:", e);
-                    audioPeaks = [];
-                }
-            };
-            
-            const updatePlayerUI = () => {
-                const isPlaying = !(unifiedHiddenPlayer.paused || unifiedHiddenPlayer.ended);
-                playIcon.style.display = isPlaying ? 'none' : 'block';
-                pauseIcon.style.display = isPlaying ? 'block' : 'none';
-                const { currentTime, duration } = unifiedHiddenPlayer;
-                container.querySelector('.audio-current-time').textContent = formatTime(currentTime);
-                if (isFinite(duration) && duration > 0) {
-                    container.querySelector('.audio-total-time').textContent = formatTime(duration);
-                    requestAnimationFrame(() => drawWaveform(currentTime / duration));
-                }
-            };
-
-            playPauseBtn.addEventListener('click', () => unifiedHiddenPlayer.paused ? unifiedHiddenPlayer.play() : unifiedHiddenPlayer.pause());
-            container.querySelector('.audio-skip-btn.backward').addEventListener('click', () => unifiedHiddenPlayer.currentTime = Math.max(0, unifiedHiddenPlayer.currentTime - 5));
-            container.querySelector('.audio-skip-btn.forward').addEventListener('click', () => unifiedHiddenPlayer.currentTime = Math.min(unifiedHiddenPlayer.duration, unifiedHiddenPlayer.currentTime + 5));
-            const volumeBtn = container.querySelector('.audio-volume-btn');
+            ui.playPauseBtn.addEventListener('click', () => mainAudioPlayer.paused ? mainAudioPlayer.play() : mainAudioPlayer.pause());
+            playerContent.querySelector('.audio-skip-btn.backward').addEventListener('click', () => mainAudioPlayer.currentTime = Math.max(0, mainAudioPlayer.currentTime - 5));
+            playerContent.querySelector('.audio-skip-btn.forward').addEventListener('click', () => mainAudioPlayer.currentTime = Math.min(mainAudioPlayer.duration, mainAudioPlayer.currentTime + 5));
+            const volumeBtn = playerContent.querySelector('.audio-volume-btn');
             volumeBtn.addEventListener('click', () => {
-                unifiedHiddenPlayer.muted = !unifiedHiddenPlayer.muted;
-                volumeBtn.querySelector('.volume-high-icon').style.display = unifiedHiddenPlayer.muted ? 'none' : 'block';
-                volumeBtn.querySelector('.volume-mute-icon').style.display = unifiedHiddenPlayer.muted ? 'block' : 'none';
+                mainAudioPlayer.muted = !mainAudioPlayer.muted;
+                volumeBtn.querySelector('.volume-high-icon').style.display = mainAudioPlayer.muted ? 'none' : 'block';
+                volumeBtn.querySelector('.volume-mute-icon').style.display = mainAudioPlayer.muted ? 'block' : 'none';
             });
-            const speedBtn = container.querySelector('.audio-speed-btn');
+            const speedBtn = playerContent.querySelector('.audio-speed-btn');
             speedBtn.addEventListener('click', () => {
                 currentPlaybackSpeedIndex = (currentPlaybackSpeedIndex + 1) % playbackSpeeds.length;
                 const newSpeed = playbackSpeeds[currentPlaybackSpeedIndex];
-                unifiedHiddenPlayer.playbackRate = newSpeed;
+                mainAudioPlayer.playbackRate = newSpeed;
                 speedBtn.textContent = `${newSpeed}x`;
             });
-
-            // These events on the single player will update the UI of the currently active player.
-            unifiedHiddenPlayer.addEventListener('loadedmetadata', async () => {
-                updatePlayerUI();
-                await processAudioForWaveform(unifiedHiddenPlayer.src);
-            });
-            unifiedHiddenPlayer.addEventListener('timeupdate', updatePlayerUI);
-            unifiedHiddenPlayer.addEventListener('play', updatePlayerUI);
-            unifiedHiddenPlayer.addEventListener('pause', updatePlayerUI);
-            unifiedHiddenPlayer.addEventListener('ended', updatePlayerUI);
-
-            window.addEventListener('resize', () => { if(unifiedHiddenPlayer.src) updatePlayerUI(); });
         }
         
-        // --- LOGIC for BOTH views ---
-        function createLoadingAnimation(containerId) {
-             const container = document.getElementById(containerId);
-             container.innerHTML = `
-                <div class="orbital-loader">
-                    <div class="orbit"><div class="satellite"></div></div>
-                    <div class="orbit"><div class="satellite"></div></div>
-                    <div class="orbit"><div class="satellite"></div></div>
-                </div>
-                <p class="loading-text">در حال پردازش هوشمند...</p>`;
-        }
+        const drawWaveform = (ui) => {
+            if (!ui) return;
+            const { waveformCanvas, waveformCtx } = ui;
+            const { currentTime, duration } = mainAudioPlayer;
+            const progressRatio = isFinite(duration) && duration > 0 ? currentTime / duration : 0;
+            const dpr = window.devicePixelRatio || 1;
+            waveformCanvas.width = waveformCanvas.offsetWidth * dpr;
+            waveformCanvas.height = waveformCanvas.offsetHeight * dpr;
+            waveformCtx.scale(dpr, dpr);
+            const width = waveformCanvas.offsetWidth;
+            const height = waveformCanvas.offsetHeight;
+            if (width === 0 || height === 0 || !audioPeaks.length) return;
+            waveformCtx.clearRect(0, 0, width, height);
+            const barWidth = 3; const barGap = 2; const totalBarAndGap = barWidth + barGap;
+            const numBars = Math.floor(width / totalBarAndGap);
+            const offset = (width - (numBars * totalBarAndGap)) / 2;
+            const activeColor = getComputedStyle(document.documentElement).getPropertyValue('--waveform-color-active').trim();
+            const inactiveColor = getComputedStyle(document.documentElement).getPropertyValue('--waveform-color-inactive').trim();
+            waveformCtx.fillStyle = inactiveColor;
+            for (let i = 0; i < numBars; i++) {
+                const peakIndex = Math.floor(i * audioPeaks.length / numBars);
+                const peak = audioPeaks[peakIndex] || 0;
+                const barHeight = peak * height;
+                const x = offset + i * totalBarAndGap;
+                const y = (height - barHeight) / 2;
+                waveformCtx.fillRect(x, y, barWidth, barHeight);
+            }
+            const activeFillEnd = progressRatio * width;
+            if (activeFillEnd > 0) {
+                waveformCtx.globalCompositeOperation = 'source-atop';
+                const gradient = waveformCtx.createLinearGradient(0, 0, width, 0);
+                gradient.addColorStop(0, activeColor);
+                waveformCtx.fillStyle = gradient;
+                waveformCtx.fillRect(0, 0, activeFillEnd, height);
+                waveformCtx.globalCompositeOperation = 'source-over';
+            }
+        };
+
+        const processAudioForWaveform = async (url) => {
+            audioPeaks = [];
+            if(!url) return;
+            if(!audioContext) audioContext = new (window.AudioContext || window.webkitAudioContext)();
+            try {
+                const response = await fetch(url);
+                const arrayBuffer = await response.arrayBuffer();
+                const decodedBuffer = await audioContext.decodeAudioData(arrayBuffer);
+                const channelData = decodedBuffer.getChannelData(0);
+                const samples = Math.floor(decodedBuffer.duration * 40);
+                const peaks = [];
+                const sampleSize = Math.floor(channelData.length / samples);
+                for (let i = 0; i < samples; i++) {
+                    let max = 0;
+                    for (let j = 0; j < sampleSize; j++) {
+                        const val = Math.abs(channelData[i * sampleSize + j]);
+                        if (val > max) max = val;
+                    }
+                    peaks.push(max);
+                }
+                audioPeaks = peaks;
+            } catch(e) { console.error("Error processing waveform:", e); audioPeaks = []; }
+        };
+
+        let activeUI = null;
+        const updatePlayerUI = () => {
+            const isPlaying = !(mainAudioPlayer.paused || mainAudioPlayer.ended);
+            document.querySelectorAll('.play-icon').forEach(i => i.style.display = isPlaying ? 'none' : 'block');
+            document.querySelectorAll('.pause-icon').forEach(i => i.style.display = isPlaying ? 'block' : 'none');
+            const { currentTime, duration } = mainAudioPlayer;
+            document.querySelectorAll('.audio-current-time').forEach(s => s.textContent = formatTime(currentTime));
+            document.querySelectorAll('.audio-total-time').forEach(s => s.textContent = isFinite(duration) ? formatTime(duration) : '0:00');
+            activeUI = standardView.style.display !== 'none' 
+                ? { waveformCanvas: document.getElementById('audio-player-content-standard').querySelector('.audio-waveform-canvas'), waveformCtx: document.getElementById('audio-player-content-standard').querySelector('.audio-waveform-canvas').getContext('2d') }
+                : { waveformCanvas: document.getElementById('audio-player-content-clone').querySelector('.audio-waveform-canvas'), waveformCtx: document.getElementById('audio-player-content-clone').querySelector('.audio-waveform-canvas').getContext('2d') };
+            requestAnimationFrame(() => drawWaveform(activeUI));
+        };
+        mainAudioPlayer.addEventListener('loadedmetadata', async () => {
+            await processAudioForWaveform(mainAudioPlayer.src);
+            updatePlayerUI();
+        });
+        ['timeupdate', 'play', 'pause', 'ended'].forEach(e => mainAudioPlayer.addEventListener(e, updatePlayerUI));
+        window.addEventListener('resize', updatePlayerUI);
 
         // --- STANDARD TTS LOGIC ---
         (function() {
-            const view = standardView;
-            const form = view.querySelector('#standard-tts-form');
-            const textInput = view.querySelector('#text-input-standard');
-            const promptInput = view.querySelector('#prompt-input-standard');
-            const tempSlider = view.querySelector('#temperature-slider-standard');
-            const tempValueSpan = view.querySelector('#temperature-value-standard');
-            const generateBtn = view.querySelector('#generate-btn-standard');
-            const outputSection = view.querySelector('#output-section-standard');
-            const statusMessage = view.querySelector('#status-message-standard');
-            const loadingAnimation = view.querySelector('#loading-animation-wrapper-standard');
-            const playerContent = view.querySelector('#audio-player-content-standard');
-            const charCount = view.querySelector('#char-count');
-            const charMax = view.querySelector('#char-max');
-            const MAX_CHARS = 50000;
+            const view = standardView, form = view.querySelector('#standard-tts-form'), textInput = view.querySelector('#text-input-standard'), promptInput = view.querySelector('#prompt-input-standard'), tempSlider = view.querySelector('#temperature-slider-standard'), tempValueSpan = view.querySelector('#temperature-value-standard'), generateBtn = view.querySelector('#generate-btn-standard'), btnText = generateBtn.querySelector('.btn-text'), btnSpinner = generateBtn.querySelector('.spinner'), outputSection = view.querySelector('#output-section-standard'), statusMessage = view.querySelector('#status-message-standard'), loadingAnimation = view.querySelector('#loading-animation-wrapper-standard'), playerContent = view.querySelector('#audio-player-content-standard'), charCount = view.querySelector('#char-count'), charMax = view.querySelector('#char-max'), MAX_CHARS = 50000;
             charMax.textContent = MAX_CHARS.toLocaleString('fa-IR');
             
-            textInput.addEventListener('input', () => {
-                const len = textInput.value.length;
-                charCount.textContent = len.toLocaleString('fa-IR');
-                charCount.style.color = len > MAX_CHARS ? 'red' : 'var(--accent-primary)';
-            });
+            textInput.addEventListener('input', () => { const len = textInput.value.length; charCount.textContent = len.toLocaleString('fa-IR'); charCount.style.color = len > MAX_CHARS ? 'red' : 'var(--accent-primary)'; });
             tempSlider.addEventListener('input', () => tempValueSpan.textContent = tempSlider.value);
             
-            const showLoadingState = () => {
-                generateBtn.disabled = true;
-                generateBtn.innerHTML = `<svg aria-hidden="true" role="status" fill="currentColor" viewBox="0 0 100 101" style="animation: spin 1s linear infinite; width:1.2em; height:1.2em; margin-left: 0.5em;"><path d="M100 50.5908C100 78.2051 77.6142 100.591 50 100.591C22.3858 100.591 0 78.2051 0 50.5908C0 22.9766 22.3858 0.59082 50 0.59082C77.6142 0.59082 100 22.9766 100 50.5908ZM9.08144 50.5908C9.08144 73.1895 27.4013 91.5094 50 91.5094C72.5987 91.5094 90.9186 73.1895 90.9186 50.5908C90.9186 27.9921 72.5987 9.67226 50 9.67226C27.4013 9.67226 9.08144 27.9921 9.08144 50.5908Z" fill="#E5E7EB"/><path d="M93.9676 39.0409C96.393 38.4038 97.8624 35.9116 97.0079 33.5539C95.2932 28.8227 92.871 24.3692 89.8167 20.348C85.8452 15.1192 80.8826 10.7238 75.2124 7.41289C69.5422 4.10194 63.2754 1.94025 56.7698 1.05124C51.7666 0.367541 46.6976 0.446843 41.7345 1.27873C39.2613 1.69328 37.813 4.19778 38.4501 6.62326C39.0873 9.04874 41.5694 10.4717 44.0505 10.1071C47.8511 9.54855 51.7191 9.52689 55.5402 10.0492C60.8642 10.7766 65.9928 12.5457 70.6331 15.2552C75.2735 17.9648 79.3347 21.5619 82.5849 25.841C84.9175 28.9121 86.7997 32.2913 88.1811 35.8758C89.083 38.2158 91.5421 39.6781 93.9676 39.0409Z" fill="currentColor"/></svg> در حال پردازش...`;
-                playerContent.style.display = 'none';
-                outputSection.classList.remove('has-content');
-                statusMessage.style.display = 'none';
-                loadingAnimation.style.display = 'flex';
-            };
+            const showLoadingState = () => { generateBtn.disabled = true; btnSpinner.style.display = 'inline-block'; btnText.textContent = 'در حال پردازش...'; playerContent.style.display = 'none'; outputSection.classList.remove('has-content'); statusMessage.style.display = 'none'; loadingAnimation.style.display = 'flex'; };
             const showResultState = (isSuccess, message = '') => {
                 loadingAnimation.style.display = 'none';
-                if (isSuccess) {
-                    statusMessage.style.display = 'none';
-                    playerContent.style.display = 'flex';
-                    outputSection.classList.add('has-content');
-                } else {
-                    statusMessage.textContent = message || 'خطایی رخ داد. لطفاً دوباره تلاش کنید.';
-                    statusMessage.style.display = 'block';
-                    playerContent.style.display = 'none';
-                    outputSection.classList.remove('has-content');
-                    unifiedHiddenPlayer.src = '';
-                }
-                generateBtn.disabled = false;
-                generateBtn.innerHTML = '✨ خلق صدا با آلفا';
+                if (isSuccess) { playerContent.style.display = 'flex'; outputSection.classList.add('has-content'); } 
+                else { statusMessage.textContent = message || 'خطایی رخ داد.'; statusMessage.style.display = 'block'; }
+                generateBtn.disabled = false; btnSpinner.style.display = 'none'; btnText.textContent = '✨ خلق صدا با آلفا';
             };
-            form.addEventListener('submit', async (e) => {
-                e.preventDefault();
+            form.addEventListener('submit', async () => {
                 showLoadingState();
                 if (!textInput.value.trim()) { showResultState(false, 'خطا: متن ورودی نمی‌تواند خالی باشد.'); return; }
                 if (textInput.value.length > MAX_CHARS) { showResultState(false, `خطا: طول متن بیش از ${MAX_CHARS.toLocaleString('fa-IR')} نویسه است.`); return; }
-                const payload = { text: textInput.value, prompt: promptInput.value, speaker: selectedSpeakerIdStorage.value, temperature: parseFloat(tempSlider.value) };
                 try {
-                    const response = await fetch('/api/generate', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(payload) });
+                    const response = await fetch('/api/generate', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ text: textInput.value, prompt: promptInput.value, speaker: selectedSpeakerIdStorage.value, temperature: parseFloat(tempSlider.value) }) });
                     if (!response.ok) throw new Error(await response.text() || `خطا از سرویس (کد: ${response.status})`);
-                    const audioBlob = await response.blob();
-                    unifiedHiddenPlayer.src = URL.createObjectURL(audioBlob);
+                    mainAudioPlayer.src = URL.createObjectURL(await response.blob());
                     showResultState(true);
                 } catch (error) { showResultState(false, error.message); }
             });
-            
-            createLoadingAnimation('loading-animation-wrapper-standard');
             createPlayerInstance('audio-player-content-standard');
-            playerContent.style.display = 'none';
-            loadingAnimation.style.display = 'none';
-            statusMessage.style.display = 'block';
+            outputSection.classList.remove('has-content'); playerContent.style.display = 'none'; loadingAnimation.style.display = 'none'; statusMessage.style.display = 'block';
         })();
 
         // --- VOICE CLONE LOGIC ---
         (function() {
-            const view = voiceCloneView;
-            const form = view.querySelector('#voice-clone-form');
-            const generateBtn = view.querySelector('#generate-btn-clone');
-            const btnText = generateBtn.querySelector('.btn-text');
-            const btnSpinner = generateBtn.querySelector('.spinner');
-            const textInput = view.querySelector('#text-input-clone');
-            const promptInput = view.querySelector('#prompt-input-clone');
-            const tempSlider = view.querySelector('#temperature-slider-clone');
-            const tempValueSpan = view.querySelector('#temperature-value-clone');
-            const userVoiceInput = view.querySelector('#user-voice-input');
-            const uploadArea = view.querySelector('#upload-area');
-            const filePreview = view.querySelector('#file-preview');
-            const fileNameSpan = view.querySelector('#file-name');
-            const removeFileBtn = view.querySelector('#remove-file-btn');
-            const previewPlayBtn = view.querySelector('.preview-play-btn');
-            const previewPlayIcon = previewPlayBtn.querySelector('.play-icon-preview');
-            const previewPauseIcon = previewPlayBtn.querySelector('.pause-icon-preview');
-            const audioPreview = view.querySelector('#audio-preview');
-            const outputSection = view.querySelector('#output-section-clone');
-            const statusMessage = view.querySelector('#status-message-clone');
-            const loadingAnimation = view.querySelector('#loading-animation-wrapper-clone');
-            const loadingText = loadingAnimation.querySelector('.loading-text');
-            const playerContent = view.querySelector('#audio-player-content-clone');
-            
-            const RENDER_API_URL = "/api/generate";
-            const HF_API_URL = "https://amphion-vevo.hf.space/gradio_api/";
+            const view = voiceCloneView, form = view.querySelector('#voice-clone-form'), generateBtn = view.querySelector('#generate-btn-clone'), btnText = generateBtn.querySelector('.btn-text'), btnSpinner = generateBtn.querySelector('.spinner'), textInput = view.querySelector('#text-input-clone'), promptInput = view.querySelector('#prompt-input-clone'), tempSlider = view.querySelector('#temperature-slider-clone'), tempValueSpan = view.querySelector('#temperature-value-clone'), userVoiceInput = view.querySelector('#user-voice-input'), uploadArea = view.querySelector('#upload-area'), filePreview = view.querySelector('#file-preview'), fileNameSpan = view.querySelector('#file-name'), removeFileBtn = view.querySelector('#remove-file-btn'), previewPlayBtn = view.querySelector('.preview-play-btn'), previewPlayIcon = previewPlayBtn.querySelector('.play-icon-preview'), previewPauseIcon = previewPlayBtn.querySelector('.pause-icon-preview'), audioPreview = view.querySelector('#audio-preview'), outputSection = view.querySelector('#output-section-clone'), statusMessage = view.querySelector('#status-message-clone'), loadingAnimation = view.querySelector('#loading-animation-wrapper-clone'), loadingText = view.querySelector('#loading-text-clone'), playerContent = view.querySelector('#audio-player-content-clone');
+            const RENDER_API_URL = "/api/generate", HF_API_URL = "https://amphion-vevo.hf.space/gradio_api/";
 
             const showUIState = (state, message = '') => {
-                generateBtn.disabled = state === 'loading';
-                btnSpinner.style.display = state === 'loading' ? 'inline-block' : 'none';
-                btnText.textContent = state === 'loading' ? 'در حال پردازش...' : 'خلق صدا با آلفا';
-                
-                outputSection.classList.remove('has-content');
-                statusMessage.style.display = 'none';
-                loadingAnimation.style.display = 'none';
-                playerContent.style.display = 'none';
-                statusMessage.classList.remove('error');
-
-                if (state === 'initial') {
-                    statusMessage.textContent = 'صدای نهایی در اینجا نمایش داده می‌شود.';
-                    statusMessage.style.display = 'block';
-                } else if (state === 'loading') {
-                    loadingAnimation.style.display = 'flex';
-                } else if (state === 'result') {
-                    playerContent.style.display = 'flex';
-                    outputSection.classList.add('has-content');
-                } else if (state === 'error') {
-                    statusMessage.innerHTML = `<b>خطا:</b> ${message}`;
-                    statusMessage.style.display = 'block';
-                    statusMessage.classList.add('error');
-                }
+                generateBtn.disabled = state === 'loading'; btnSpinner.style.display = state === 'loading' ? 'inline-block' : 'none'; btnText.textContent = state === 'loading' ? 'در حال پردازش...' : 'خلق صدا با آلفا';
+                outputSection.classList.remove('has-content'); statusMessage.style.display = 'none'; loadingAnimation.style.display = 'none'; playerContent.style.display = 'none'; statusMessage.classList.remove('error');
+                if (state === 'initial') { statusMessage.textContent = 'صدای نهایی در اینجا نمایش داده می‌شود.'; statusMessage.style.display = 'block'; } 
+                else if (state === 'loading') { loadingAnimation.style.display = 'flex'; } 
+                else if (state === 'result') { playerContent.style.display = 'flex'; outputSection.classList.add('has-content'); } 
+                else if (state === 'error') { statusMessage.innerHTML = `<b>خطا:</b> ${message}`; statusMessage.style.display = 'block'; statusMessage.classList.add('error'); }
             };
-            
-            const handleFileSelect = (file) => {
-                if (file) {
-                    fileNameSpan.textContent = file.name;
-                    uploadArea.style.display = 'none';
-                    filePreview.style.display = 'flex';
-                    audioPreview.src = URL.createObjectURL(file);
-                }
-            };
-            uploadArea.addEventListener('click', () => userVoiceInput.click());
-            userVoiceInput.addEventListener('change', () => handleFileSelect(userVoiceInput.files[0]));
+            const handleFileSelect = (file) => { if (file) { fileNameSpan.textContent = file.name; uploadArea.style.display = 'none'; filePreview.style.display = 'flex'; audioPreview.src = URL.createObjectURL(file); } };
+            uploadArea.addEventListener('click', () => userVoiceInput.click()); userVoiceInput.addEventListener('change', () => handleFileSelect(userVoiceInput.files[0]));
             ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(evName => uploadArea.addEventListener(evName, e => { e.preventDefault(); e.stopPropagation(); }));
             ['dragenter', 'dragover'].forEach(evName => uploadArea.addEventListener(evName, () => uploadArea.classList.add('drag-over')));
             ['dragleave', 'drop'].forEach(evName => uploadArea.addEventListener(evName, () => uploadArea.classList.remove('drag-over')));
@@ -738,14 +524,12 @@
             tempSlider.addEventListener('input', () => tempValueSpan.textContent = tempSlider.value);
             
             const callTtsApi = async (text, prompt, temp) => {
-                const payload = { text, speaker: "Charon", temperature: temp, prompt };
-                const response = await fetch(RENDER_API_URL, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+                const response = await fetch(RENDER_API_URL, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ text, speaker: "Charon", temperature: temp, prompt }) });
                 if (!response.ok) throw new Error(`سرویس تبدیل متن به صدا با خطا مواجه شد: ${await response.text()}`);
                 return response.blob();
             };
             const uploadFileToHf = async (file) => {
-                const formData = new FormData();
-                formData.append("files", file);
+                const formData = new FormData(); formData.append("files", file);
                 const response = await fetch(`${HF_API_URL}upload`, { method: 'POST', body: formData });
                 const result = await response.json();
                 if (result && result.length > 0) return result[0];
@@ -753,11 +537,7 @@
             };
             const callVevoApi = (sourcePath, timbrePath, sessionHash) => {
                 return new Promise(async (resolve, reject) => {
-                    await fetch(`${HF_API_URL}queue/join?`, {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ data: [ { path: sourcePath, url: `${HF_API_URL}file=${sourcePath}`, meta: { _type: "gradio.FileData" } }, { path: timbrePath, url: `${HF_API_URL}file=${timbrePath}`, meta: { _type: "gradio.FileData" } } ], fn_index: 0, session_hash: sessionHash })
-                    });
+                    await fetch(`${HF_API_URL}queue/join?`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ data: [ { path: sourcePath, url: `${HF_API_URL}file=${sourcePath}`, meta: { _type: "gradio.FileData" } }, { path: timbrePath, url: `${HF_API_URL}file=${timbrePath}`, meta: { _type: "gradio.FileData" } } ], fn_index: 0, session_hash: sessionHash }) });
                     const es = new EventSource(`${HF_API_URL}queue/data?session_hash=${sessionHash}`);
                     es.onmessage = (e) => {
                         const data = JSON.parse(e.data);
@@ -765,47 +545,30 @@
                         else if (data.msg === 'process_completed') {
                             es.close();
                             if (data.output.error) {
-                                if (typeof data.output.error === 'string' && data.output.error.includes('GPU quota')) {
-                                     reject(new Error('محدودیت GPU. برای استفاده مجدد،از اینترنت سیم کارت استفاده کنید فیلتر شکن را خاموش کرده، یک یا دو بار حالت هواپیما را روشن و خاموش کنید و بدون فیلتر شکن مجدداً امتحان نمایید و یا اگر از وای فای استفاده میکنید ip تغییر بدید این محدودیت بدون این کار چند ساعت بعد برداشته میشود.'));
-                                } else {
-                                    reject(new Error(`خطا در پردازش هوش مصنوعی: ${data.output.error}`));
-                                }
-                            } else if (data.output.data?.[0]?.path) {
-                                resolve(`${HF_API_URL}file=${data.output.data[0].path}`);
-                            } else reject(new Error('پاسخ نهایی از سرور معتبر نبود.'));
-                        } else if (data.msg === 'queue_full') {
-                            es.close();
-                            reject(new Error('صف پردازش Hugging Face پر است. لطفاً کمی بعد دوباره تلاش کنید.'));
-                        }
+                                if (typeof data.output.error === 'string' && data.output.error.includes('GPU quota')) reject(new Error('محدودیت GPU. برای استفاده مجدد،از اینترنت سیم کارت استفاده کنید فیلتر شکن را خاموش کرده، یک یا دو بار حالت هواپیما را روشن و خاموش کنید و بدون فیلتر شکن مجدداً امتحان نمایید و یا اگر از وای فای استفاده میکنید ip تغییر بدید این محدودیت بدون این کار چند ساعت بعد برداشته میشود.'));
+                                else reject(new Error(`خطا در پردازش هوش مصنوعی: ${data.output.error}`));
+                            } else if (data.output.data?.[0]?.path) resolve(`${HF_API_URL}file=${data.output.data[0].path}`);
+                            else reject(new Error('پاسخ نهایی از سرور معتبر نبود.'));
+                        } else if (data.msg === 'queue_full') { es.close(); reject(new Error('صف پردازش Hugging Face پر است. لطفاً کمی بعد دوباره تلاش کنید.')); }
                     };
                     es.onerror = () => { es.close(); reject(new Error('خطا در ارتباط با سرور Hugging Face.')); };
                 });
             };
 
             form.addEventListener('submit', async () => {
-                const text = textInput.value;
-                const userVoiceFile = userVoiceInput.files[0];
+                const text = textInput.value; const userVoiceFile = userVoiceInput.files[0];
                 if (!text.trim() || !userVoiceFile) { alert("لطفاً هم متن را وارد کنید و هم فایل صوتی خود را انتخاب نمایید."); return; }
-                
-                showUIState('loading');
-                loadingText.textContent = 'مرحله ۱: تولید صدای اولیه...';
+                showUIState('loading'); loadingText.textContent = 'مرحله ۱: تولید صدای اولیه...';
                 try {
                     const ttsBlob = await callTtsApi(text, promptInput.value, parseFloat(tempSlider.value));
-                    const ttsFile = new File([ttsBlob], "initial_tts.wav", { type: "audio/wav" });
                     loadingText.textContent = 'در حال آپلود فایل‌ها به سرور...';
-                    const sessionHash = Math.random().toString(36).substring(2, 11);
-                    const [hfTtsPath, hfUserVoicePath] = await Promise.all([ uploadFileToHf(ttsFile), uploadFileToHf(userVoiceFile) ]);
-                    const finalAudioUrl = await callVevoApi(hfTtsPath, hfUserVoicePath, sessionHash);
-                    unifiedHiddenPlayer.src = finalAudioUrl;
+                    const [hfTtsPath, hfUserVoicePath] = await Promise.all([ uploadFileToHf(new File([ttsBlob], "initial.wav")), uploadFileToHf(userVoiceFile) ]);
+                    mainAudioPlayer.src = await callVevoApi(hfTtsPath, hfUserVoicePath, Math.random().toString(36).substring(2, 11));
                     showUIState('result');
                 } catch (error) { showUIState('error', error.message); }
             });
-            
-            createLoadingAnimation('loading-animation-wrapper-clone');
             createPlayerInstance('audio-player-content-clone');
-            playerContent.style.display = 'none';
-            loadingAnimation.style.display = 'none';
-            statusMessage.style.display = 'block';
+            showUIState('initial');
         })();
 
         // --- Final Initialization ---
