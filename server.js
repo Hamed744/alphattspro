@@ -1,17 +1,20 @@
-import express from 'express';
-import proxy from 'express-http-proxy';
-import path from 'path';
-import { fileURLToPath } from 'url';
-// راه‌حل نهایی و قطعی اینجاست: استفاده از import namespace
-import * as hub from '@huggingface/hub';
-import fs from 'fs/promises';
+const express = require('express');
+const proxy = require('express-http-proxy');
+const path = require('path');
+const fs = require('fs/promises');
 
-// استخراج کلاس از ماژول وارد شده
-const { HfApi } = hub;
+// --- راه‌حل نهایی برای مشکل Import ---
+// ماژول را به صورت کامل require می‌کنیم
+const hubModule = require('@huggingface/hub');
+// به دنبال HfApi در ساختارهای مختلف می‌گردیم تا پیدایش کنیم
+const HfApi = hubModule.HfApi || hubModule.default?.HfApi || hubModule;
 
-// تعریف __dirname در محیط ESM
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
+if (typeof HfApi !== 'function') {
+    console.error("CRITICAL ERROR: Could not find HfApi constructor in the '@huggingface/hub' module.");
+    console.error("Imported module keys:", Object.keys(hubModule));
+    process.exit(1); // اگر پیدا نشد، برنامه را متوقف کن
+}
+// --- پایان راه‌حل ---
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -205,8 +208,9 @@ app.get('*', (req, res) => {
 });
 
 // سرور را بعد از بارگذاری داده‌های اولیه اجرا کن
-await loadInitialData();
-app.listen(PORT, () => {
-    console.log(`Smart proxy server with credit system listening on port ${PORT}`);
-    console.log(`Distributing load across (Round-robin): ${HF_WORKERS.join(', ')}`);
+loadInitialData().then(() => {
+    app.listen(PORT, () => {
+        console.log(`Smart proxy server with credit system listening on port ${PORT}`);
+        console.log(`Distributing load across (Round-robin): ${HF_WORKERS.join(', ')}`);
+    });
 });
