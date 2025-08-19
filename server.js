@@ -2,19 +2,7 @@ const express = require('express');
 const proxy = require('express-http-proxy');
 const path = require('path');
 const fs = require('fs/promises');
-
-// --- راه‌حل نهایی برای مشکل Import ---
-// ماژول را به صورت کامل require می‌کنیم
-const hubModule = require('@huggingface/hub');
-// به دنبال HfApi در ساختارهای مختلف می‌گردیم تا پیدایش کنیم
-const HfApi = hubModule.HfApi || hubModule.default?.HfApi || hubModule;
-
-if (typeof HfApi !== 'function') {
-    console.error("CRITICAL ERROR: Could not find HfApi constructor in the '@huggingface/hub' module.");
-    console.error("Imported module keys:", Object.keys(hubModule));
-    process.exit(1); // اگر پیدا نشد، برنامه را متوقف کن
-}
-// --- پایان راه‌حل ---
+const hub = require('@huggingface/hub');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -41,30 +29,25 @@ const getNextWorker = () => {
 // --- مدیریت داده‌های کاربران ---
 let usage_data_cache = [];
 let data_changed = false;
-let api;
-
-if (HF_TOKEN) {
-    api = new HfApi(HF_TOKEN);
-    console.log("HfApi initialized successfully.");
-}
-
 const CACHE_FILE_PATH = path.join(__dirname, DATASET_FILENAME_TTS);
 
 // تابع برای بارگذاری داده‌ها از هاگینگ فیس در ابتدای کار
 const loadInitialData = async () => {
-    if (!api) {
+    if (!HF_TOKEN) {
         console.error("CRITICAL: Hugging Face Token (HF_TOKEN) is not set. Database features will be disabled.");
         return;
     }
     try {
         console.log(`Attempting to load data from '${DATASET_REPO}'...`);
-        const fileUrl = await api.fileDownload({
+        // استفاده مستقیم از تابع downloadFile و ارسال توکن
+        const fileUrl = await hub.downloadFile({
             repo: { type: "dataset", name: DATASET_REPO },
             path: DATASET_FILENAME_TTS,
+            credentials: { hf_token: HF_TOKEN }
         });
 
         if (!fileUrl) {
-            throw new Error("File not found in repository (fileDownload returned null).");
+            throw new Error("File not found in repository (downloadFile returned null).");
         }
 
         const response = await fetch(fileUrl);
@@ -80,7 +63,7 @@ const loadInitialData = async () => {
         }
 
     } catch (error) {
-        if (error.message.includes('404') || error.message.includes('fileDownload returned null')) {
+        if (error.message.includes('404') || error.message.includes('downloadFile returned null')) {
             console.warn("TTS usage file not found in the repository. A new one will be created.");
             usage_data_cache = [];
         } else {
@@ -91,16 +74,18 @@ const loadInitialData = async () => {
 
 // تابع برای ذخیره داده‌ها در هاگینگ فیس (فقط در صورت وجود تغییر)
 const persistDataToHub = async () => {
-    if (!data_changed || !api) return;
+    if (!data_changed || !HF_TOKEN) return;
 
     console.log("Change detected, preparing to write to Hugging Face Hub...");
     try {
         await fs.writeFile(CACHE_FILE_PATH, JSON.stringify(usage_data_cache, null, 2));
 
-        await api.uploadFile({
+        // استفاده مستقیم از تابع uploadFile و ارسال توکن
+        await hub.uploadFile({
             repo: { type: "dataset", name: DATASET_REPO },
             pathOrBlob: CACHE_FILE_PATH,
             pathInRepo: DATASET_FILENAME_TTS,
+            credentials: { hf_token: HF_TOKEN }
         });
 
         await fs.unlink(CACHE_FILE_PATH);
