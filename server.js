@@ -2,8 +2,12 @@ import express from 'express';
 import proxy from 'express-http-proxy';
 import path from 'path';
 import { fileURLToPath } from 'url';
-import { HfApi } from '@huggingface/hub';
+// راه‌حل نهایی و قطعی اینجاست: استفاده از import namespace
+import * as hub from '@huggingface/hub';
 import fs from 'fs/promises';
+
+// استخراج کلاس از ماژول وارد شده
+const { HfApi } = hub;
 
 // تعریف __dirname در محیط ESM
 const __filename = fileURLToPath(import.meta.url);
