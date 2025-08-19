@@ -1,17 +1,22 @@
-const express = require('express');
-const proxy = require('express-http-proxy');
-const path = require('path');
-const { HfApi } = require('@huggingface/hub'); // این روش استاندارد و صحیح است
-const fs = require('fs/promises');
+import express from 'express';
+import proxy from 'express-http-proxy';
+import path from 'path';
+import { fileURLToPath } from 'url';
+import { HfApi } from '@huggingface/hub';
+import fs from 'fs/promises';
+
+// تعریف __dirname در محیط ESM
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 const app = express();
 const PORT = process.env.PORT || 3000;
 
 // --- تنظیمات اصلی ---
-const HF_TOKEN = process.env.HF_TOKEN; 
+const HF_TOKEN = process.env.HF_TOKEN;
 const DATASET_REPO = "Ezmary/Karbaran-rayegan-tedad";
 const DATASET_FILENAME_TTS = "usage_data_tts.json";
-const USAGE_LIMIT_TTS = 5; 
+const USAGE_LIMIT_TTS = 5;
 
 // --- تنظیمات پراکسی (بدون تغییر) ---
 const HF_WORKERS = [
@@ -32,14 +37,8 @@ let data_changed = false;
 let api;
 
 if (HF_TOKEN) {
-    try {
-        api = new HfApi(HF_TOKEN);
-        console.log("HfApi initialized successfully.");
-    } catch (e) {
-        console.error("Failed to initialize HfApi:", e);
-        // اگر اینجا خطا رخ دهد، برنامه متوقف می‌شود که بهتر از اجرای ناقص است
-        process.exit(1);
-    }
+    api = new HfApi(HF_TOKEN);
+    console.log("HfApi initialized successfully.");
 }
 
 const CACHE_FILE_PATH = path.join(__dirname, DATASET_FILENAME_TTS);
@@ -56,14 +55,14 @@ const loadInitialData = async () => {
             repo: { type: "dataset", name: DATASET_REPO },
             path: DATASET_FILENAME_TTS,
         });
-        
+
         if (!fileUrl) {
-             throw new Error("File not found in repository (fileDownload returned null).");
+            throw new Error("File not found in repository (fileDownload returned null).");
         }
 
         const response = await fetch(fileUrl);
         if (!response.ok) throw new Error(`Failed to download file with status: ${response.status}`);
-        
+
         const content = await response.text();
         if (content) {
             usage_data_cache = JSON.parse(content);
@@ -90,29 +89,27 @@ const persistDataToHub = async () => {
     console.log("Change detected, preparing to write to Hugging Face Hub...");
     try {
         await fs.writeFile(CACHE_FILE_PATH, JSON.stringify(usage_data_cache, null, 2));
-        
+
         await api.uploadFile({
             repo: { type: "dataset", name: DATASET_REPO },
             pathOrBlob: CACHE_FILE_PATH,
             pathInRepo: DATASET_FILENAME_TTS,
         });
-        
+
         await fs.unlink(CACHE_FILE_PATH);
-        data_changed = false; 
+        data_changed = false;
         console.log(`Successfully persisted ${usage_data_cache.length} TTS records to the Hub.`);
     } catch (error) {
         console.error("CRITICAL: Failed to persist TTS data to Hub:", error);
     }
 };
 
-// هر 30 ثانیه یکبار داده‌ها را در صورت نیاز ذخیره کن
 setInterval(persistDataToHub, 30000);
 
 // --- Middleware ها و API Endpoints ---
-app.use(express.json()); 
+app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
 
-// API جدید برای چک کردن اعتبار کاربر
 app.post('/api/check-credit-tts', (req, res) => {
     const { fingerprint, subscriptionStatus } = req.body;
     if (!fingerprint) {
@@ -125,11 +122,11 @@ app.post('/api/check-credit-tts', (req, res) => {
 
     const today = new Date().toISOString().split('T')[0];
     let user_record = usage_data_cache.find(u => u.fingerprint === fingerprint);
-    
+
     let credits_remaining = USAGE_LIMIT_TTS;
     if (user_record) {
         if (user_record.last_reset !== today) {
-            user_record.count = 0; 
+            user_record.count = 0;
             user_record.last_reset = today;
             data_changed = true;
         }
@@ -142,7 +139,6 @@ app.post('/api/check-credit-tts', (req, res) => {
     });
 });
 
-// Middleware برای کنترل دسترسی قبل از ارسال به پراکسی
 const creditCheckMiddleware = (req, res, next) => {
     const { fingerprint, subscriptionStatus } = req.body;
     if (!fingerprint) {
@@ -161,28 +157,27 @@ const creditCheckMiddleware = (req, res, next) => {
             user_record.count = 0;
             user_record.last_reset = today;
         }
-        
+
         if (user_record.count >= USAGE_LIMIT_TTS) {
-            return res.status(429).json({ 
+            return res.status(429).json({
                 message: "You have reached your daily limit for TTS generation.",
-                credits_remaining: 0 
+                credits_remaining: 0
             });
         }
-        
+
         user_record.count++;
     } else {
         user_record = { fingerprint, count: 1, last_reset: today };
         usage_data_cache.push(user_record);
     }
-    
+
     data_changed = true;
     console.log(`Free user ${fingerprint} used a credit. Remaining: ${USAGE_LIMIT_TTS - user_record.count}`);
     next();
 };
 
-// API اصلی برای تولید صدا (حالا هوشمند شده)
 app.use('/api/generate', creditCheckMiddleware, proxy(() => {
-    const worker = getNextWorker(); 
+    const worker = getNextWorker();
     console.log(`Forwarding request to worker (Round-robin): ${worker}`);
     return `https://${worker}`;
 }, {
@@ -206,9 +201,8 @@ app.get('*', (req, res) => {
 });
 
 // سرور را بعد از بارگذاری داده‌های اولیه اجرا کن
-loadInitialData().then(() => {
-    app.listen(PORT, () => {
-        console.log(`Smart proxy server with credit system listening on port ${PORT}`);
-        console.log(`Distributing load across (Round-robin): ${HF_WORKERS.join(', ')}`);
-    });
+await loadInitialData();
+app.listen(PORT, () => {
+    console.log(`Smart proxy server with credit system listening on port ${PORT}`);
+    console.log(`Distributing load across (Round-robin): ${HF_WORKERS.join(', ')}`);
 });
