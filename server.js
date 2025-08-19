@@ -7,8 +7,10 @@ const PORT = process.env.PORT || 3000;
 
 // --- تنظیمات اصلی ---
 const USAGE_LIMIT_TTS = 5; // محدودیت روزانه برای کاربران رایگان
+// آدرس دقیق اسپیس پادکست خود را اینجا وارد کنید
+const PODCAST_SPACE_URL = 'https://ezmary-padgenpro2.hf.space/';
 
-// --- تنظیمات پراکسی (بدون تغییر) ---
+// --- تنظیمات پراکسی ---
 const HF_WORKERS = [
     'hamed744-ttspro.hf.space',
     'hamed744-ttspro2.hf.space',
@@ -21,14 +23,10 @@ const getNextWorker = () => {
     return worker;
 };
 
-// --- مدیریت داده‌های کاربران در حافظه موقت (In-Memory) ---
-// ساختار جدید: { fingerprint: "...", ips: ["...", "..."], count: 0, last_reset: "..." }
+// --- مدیریت داده‌های کاربران در حافظه موقت ---
 let usage_data_cache = [];
 console.log("Server started in in-memory mode with IP + Fingerprint tracking.");
 
-// --- توابع کمکی ---
-
-// تابع برای دریافت IP کاربر (سازگار با Render)
 const getUserIp = (req) => {
     const forwarded = req.headers['x-forwarded-for'];
     if (forwarded) {
@@ -41,94 +39,70 @@ const getUserIp = (req) => {
 app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
 
-// API برای چک کردن اعتبار کاربر
 app.post('/api/check-credit-tts', (req, res) => {
     const { fingerprint, subscriptionStatus } = req.body;
     if (!fingerprint) {
         return res.status(400).json({ message: "Fingerprint is required." });
     }
-
     if (subscriptionStatus === 'paid') {
         return res.json({ credits_remaining: 'unlimited', limit_reached: false });
     }
-
     const currentIp = getUserIp(req);
     const today = new Date().toISOString().split('T')[0];
-
-    // جستجو بر اساس اثر انگشت یا IP
-    let user_record = usage_data_cache.find(u =>
-        u.fingerprint === fingerprint || u.ips.includes(currentIp)
-    );
-
+    let user_record = usage_data_cache.find(u => u.fingerprint === fingerprint || u.ips.includes(currentIp));
     let credits_remaining = USAGE_LIMIT_TTS;
     if (user_record) {
-        // ریست روزانه اعتبار
         if (user_record.last_reset !== today) {
             user_record.count = 0;
             user_record.last_reset = today;
         }
         credits_remaining = Math.max(0, USAGE_LIMIT_TTS - user_record.count);
     }
-
-    res.json({
-        credits_remaining,
-        limit_reached: credits_remaining <= 0
-    });
+    res.json({ credits_remaining, limit_reached: credits_remaining <= 0 });
 });
 
-// Middleware برای کنترل دسترسی و کسر اعتبار قبل از تولید صدا
+// Middleware برای کنترل دسترسی
 const creditCheckMiddleware = (req, res, next) => {
+    // *** شروع تغییر اصلی ***
+    // 1. چک کردن هدر Referer برای شناسایی درخواست از اسپیس پادکست
+    const referer = req.headers['referer'];
+    if (referer && referer.startsWith(PODCAST_SPACE_URL)) {
+        console.log(`Request from trusted Podcast Space (${referer}) detected. Bypassing credit check.`);
+        return next(); // اجازه عبور نامحدود برای اسپیس پادکست
+    }
+    // *** پایان تغییر اصلی ***
+
+    // 2. ادامه منطق قبلی برای کاربران عادی (از اپلیکیشن TTS)
     const { fingerprint, subscriptionStatus } = req.body;
     if (!fingerprint) {
-        return res.status(400).json({ message: "Fingerprint is required." });
+        // اگر اثر انگشت وجود نداشته باشد (ممکن است درخواست از جای دیگری باشد)، آن را مسدود کن
+        console.warn(`Blocking request with no fingerprint from referer: ${referer || 'none'}`);
+        return res.status(400).json({ message: "Fingerprint is required for this request." });
     }
 
     if (subscriptionStatus === 'paid') {
         return next();
     }
-
-    // منطق پیشرفته برای کاربران رایگان
+    
     const currentIp = getUserIp(req);
     const today = new Date().toISOString().split('T')[0];
-
-    // جستجو بر اساس اثر انگشت یا IP
-    let user_record = usage_data_cache.find(u =>
-        u.fingerprint === fingerprint || u.ips.includes(currentIp)
-    );
+    let user_record = usage_data_cache.find(u => u.fingerprint === fingerprint || u.ips.includes(currentIp));
 
     if (user_record) {
-        // کاربر موجود پیدا شد
-        // ریست کردن اعتبار در صورت تغییر روز
         if (user_record.last_reset !== today) {
             user_record.count = 0;
             user_record.last_reset = today;
-            user_record.ips = [currentIp]; // لیست IP ها را هم برای روز جدید ریست می‌کنیم
+            user_record.ips = [currentIp];
         }
-
-        // چک کردن اتمام اعتبار
         if (user_record.count >= USAGE_LIMIT_TTS) {
-            return res.status(429).json({
-                message: "شما به محدودیت روزانه خود برای تولید صدا رسیده‌اید. هر روز بصورت رایگان امکان ساخت پنج صدا وجود داره برای استفاده نامحدود اشتراک خریداری کنید و از همه بخش های برنامه بصورت نامحدود با داشتن اشتراک استفاده کنید.",
-                credits_remaining: 0
-            });
+            return res.status(429).json({ message: "شما به محدودیت روزانه خود برای تولید صدا رسیده‌اید...", credits_remaining: 0 });
         }
-        
-        // کسر یک اعتبار
         user_record.count++;
-
-        // اضافه کردن IP جدید به لیست در صورت عدم وجود
         if (!user_record.ips.includes(currentIp)) {
             user_record.ips.push(currentIp);
         }
-
     } else {
-        // ساخت رکورد برای کاربر کاملاً جدید
-        user_record = {
-            fingerprint,
-            ips: [currentIp],
-            count: 1,
-            last_reset: today
-        };
+        user_record = { fingerprint, ips: [currentIp], count: 1, last_reset: today };
         usage_data_cache.push(user_record);
     }
 
@@ -136,7 +110,6 @@ const creditCheckMiddleware = (req, res, next) => {
     next();
 };
 
-// API اصلی برای تولید صدا
 app.use('/api/generate', creditCheckMiddleware, proxy(() => {
     const worker = getNextWorker();
     console.log(`Forwarding request to worker (Round-robin): ${worker}`);
@@ -161,8 +134,8 @@ app.get('*', (req, res) => {
     res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
 
-// اجرای سرور
 app.listen(PORT, () => {
     console.log(`Smart proxy server with in-memory credit system listening on port ${PORT}`);
+    console.log(`Trusted Referer for unlimited access: ${PODCAST_SPACE_URL}`);
     console.log(`Distributing load across (Round-robin): ${HF_WORKERS.join(', ')}`);
 });
