@@ -87,7 +87,7 @@ const creditCheckMiddleware = (req, res, next) => {
         // چک کردن اتمام اعتبار
         if (user_record.count >= USAGE_LIMIT_TTS) {
             return res.status(429).json({
-                message: "You have reached your daily limit for TTS generation.",
+                message: "شما به محدودیت روزانه خود برای تولید صدا رسیده‌اید. هر روز بصورت رایگان امکان ساخت پنج صدا وجود داره برای استفاده نامحدود اشتراک خریداری کنید و از همه بخش های برنامه بصورت نامحدود با داشتن اشتراک استفاده کنید.",
                 credits_remaining: 0
             });
         }
