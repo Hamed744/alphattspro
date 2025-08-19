@@ -1,8 +1,11 @@
 const express = require('express');
 const proxy = require('express-http-proxy');
 const path = require('path');
-const { HfApi } = require('@huggingface/hub');
+// تغییر ۱: نحوه import کردن کتابخانه اصلاح شد
+const hub = require('@huggingface/hub');
 const fs = require('fs/promises');
+
+const HfApi = hub.HfApi; // استخراج کلاس از ماژول وارد شده
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -40,18 +43,30 @@ const loadInitialData = async () => {
     }
     try {
         console.log(`Attempting to load data from '${DATASET_REPO}'...`);
-        const fileUrl = await api.hf.hub.fileDownload({
+        // تغییر ۲: متد دانلود فایل اصلاح شد
+        const fileUrl = await api.fileDownload({
             repo: { type: "dataset", name: DATASET_REPO },
             path: DATASET_FILENAME_TTS,
         });
+        
+        if (!fileUrl) {
+             throw new Error("File not found in repository (fileDownload returned null).");
+        }
+
         const response = await fetch(fileUrl);
         if (!response.ok) throw new Error(`Failed to download file with status: ${response.status}`);
         
         const content = await response.text();
-        usage_data_cache = JSON.parse(content);
-        console.log(`Successfully loaded ${usage_data_cache.length} TTS user records into memory.`);
+        if (content) {
+            usage_data_cache = JSON.parse(content);
+            console.log(`Successfully loaded ${usage_data_cache.length} TTS user records into memory.`);
+        } else {
+            console.log("TTS usage file is empty. Initializing with an empty array.");
+            usage_data_cache = [];
+        }
+
     } catch (error) {
-        if (error.message.includes('404')) {
+        if (error.message.includes('404') || error.message.includes('fileDownload returned null')) {
             console.warn("TTS usage file not found in the repository. A new one will be created.");
             usage_data_cache = [];
         } else {
@@ -171,8 +186,10 @@ app.use('/api/generate', creditCheckMiddleware, proxy(() => {
     proxyReqPathResolver: (req) => '/generate',
     proxyReqBodyDecorator: (bodyContent, srcReq) => {
         // موارد مربوط به اعتبار را از body حذف کن تا به سرور اصلی ارسال نشود
-        delete bodyContent.fingerprint;
-        delete bodyContent.subscriptionStatus;
+        if (bodyContent) {
+            delete bodyContent.fingerprint;
+            delete bodyContent.subscriptionStatus;
+        }
         return bodyContent;
     },
     proxyErrorHandler: (err, res, next) => {
