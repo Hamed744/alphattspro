@@ -1,20 +1,18 @@
 const express = require('express');
 const proxy = require('express-http-proxy');
 const path = require('path');
-// تغییر ۱: نحوه import کردن کتابخانه اصلاح شد
-const hub = require('@huggingface/hub');
+// تغییر اصلی: این روش import صحیح برای نسخه‌های جدید کتابخانه است
+const { HfApi } = require('@huggingface/hub'); 
 const fs = require('fs/promises');
-
-const HfApi = hub.HfApi; // استخراج کلاس از ماژول وارد شده
 
 const app = express();
 const PORT = process.env.PORT || 3000;
 
 // --- تنظیمات اصلی ---
-const HF_TOKEN = process.env.HF_TOKEN; // بسیار مهم: این را در متغیرهای محیطی Render تنظیم کنید
+const HF_TOKEN = process.env.HF_TOKEN; 
 const DATASET_REPO = "Ezmary/Karbaran-rayegan-tedad";
 const DATASET_FILENAME_TTS = "usage_data_tts.json";
-const USAGE_LIMIT_TTS = 5; // محدودیت روزانه برای کاربران رایگان
+const USAGE_LIMIT_TTS = 5; 
 
 // --- تنظیمات پراکسی (بدون تغییر) ---
 const HF_WORKERS = [
@@ -32,18 +30,20 @@ const getNextWorker = () => {
 // --- مدیریت داده‌های کاربران ---
 let usage_data_cache = [];
 let data_changed = false;
-const api = new HfApi(HF_TOKEN);
+let api;
+if (HF_TOKEN) {
+    api = new HfApi(HF_TOKEN);
+}
 const CACHE_FILE_PATH = path.join(__dirname, DATASET_FILENAME_TTS);
 
 // تابع برای بارگذاری داده‌ها از هاگینگ فیس در ابتدای کار
 const loadInitialData = async () => {
-    if (!HF_TOKEN) {
+    if (!api) {
         console.error("CRITICAL: Hugging Face Token (HF_TOKEN) is not set. Database features will be disabled.");
         return;
     }
     try {
         console.log(`Attempting to load data from '${DATASET_REPO}'...`);
-        // تغییر ۲: متد دانلود فایل اصلاح شد
         const fileUrl = await api.fileDownload({
             repo: { type: "dataset", name: DATASET_REPO },
             path: DATASET_FILENAME_TTS,
@@ -77,7 +77,7 @@ const loadInitialData = async () => {
 
 // تابع برای ذخیره داده‌ها در هاگینگ فیس (فقط در صورت وجود تغییر)
 const persistDataToHub = async () => {
-    if (!data_changed || !HF_TOKEN) return;
+    if (!data_changed || !api) return;
 
     console.log("Change detected, preparing to write to Hugging Face Hub...");
     try {
@@ -90,7 +90,7 @@ const persistDataToHub = async () => {
         });
         
         await fs.unlink(CACHE_FILE_PATH);
-        data_changed = false; // فلگ را ریست کن
+        data_changed = false; 
         console.log(`Successfully persisted ${usage_data_cache.length} TTS records to the Hub.`);
     } catch (error) {
         console.error("CRITICAL: Failed to persist TTS data to Hub:", error);
@@ -101,7 +101,7 @@ const persistDataToHub = async () => {
 setInterval(persistDataToHub, 30000);
 
 // --- Middleware ها و API Endpoints ---
-app.use(express.json()); // برای خواندن JSON از body درخواست‌ها
+app.use(express.json()); 
 app.use(express.static(path.join(__dirname, 'public')));
 
 // API جدید برای چک کردن اعتبار کاربر
@@ -115,13 +115,13 @@ app.post('/api/check-credit-tts', (req, res) => {
         return res.json({ credits_remaining: 'unlimited', limit_reached: false });
     }
 
-    const today = new Date().toISOString().split('T')[0]; // تاریخ امروز به فرمت YYYY-MM-DD
+    const today = new Date().toISOString().split('T')[0];
     let user_record = usage_data_cache.find(u => u.fingerprint === fingerprint);
     
     let credits_remaining = USAGE_LIMIT_TTS;
     if (user_record) {
         if (user_record.last_reset !== today) {
-            user_record.count = 0; // ریست کردن اعتبار
+            user_record.count = 0; 
             user_record.last_reset = today;
             data_changed = true;
         }
@@ -141,17 +141,14 @@ const creditCheckMiddleware = (req, res, next) => {
         return res.status(400).json({ message: "Fingerprint is required." });
     }
 
-    // کاربران پولی دسترسی نامحدود دارند
     if (subscriptionStatus === 'paid') {
         return next();
     }
 
-    // منطق برای کاربران رایگان
     const today = new Date().toISOString().split('T')[0];
     let user_record = usage_data_cache.find(u => u.fingerprint === fingerprint);
 
     if (user_record) {
-        // اگر تاریخ آخرین استفاده برای امروز نیست، اعتبار را ریست کن
         if (user_record.last_reset !== today) {
             user_record.count = 0;
             user_record.last_reset = today;
@@ -166,7 +163,6 @@ const creditCheckMiddleware = (req, res, next) => {
         
         user_record.count++;
     } else {
-        // کاربر جدید
         user_record = { fingerprint, count: 1, last_reset: today };
         usage_data_cache.push(user_record);
     }
@@ -185,7 +181,6 @@ app.use('/api/generate', creditCheckMiddleware, proxy(() => {
     https: true,
     proxyReqPathResolver: (req) => '/generate',
     proxyReqBodyDecorator: (bodyContent, srcReq) => {
-        // موارد مربوط به اعتبار را از body حذف کن تا به سرور اصلی ارسال نشود
         if (bodyContent) {
             delete bodyContent.fingerprint;
             delete bodyContent.subscriptionStatus;
