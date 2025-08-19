@@ -31,6 +31,29 @@
         @keyframes satellite-pulse-1 { from { transform: scale(0.7) translateX(-50%); opacity: 0.6; } to { transform: scale(1.1) translateX(-50%); opacity: 1; } }
         @keyframes satellite-pulse-2 { from { transform: scale(0.7) translateY(-50%); opacity: 0.6; } to { transform: scale(1.1) translateY(-50%); opacity: 1; } }
         @keyframes satellite-pulse-3 { from { transform: scale(0.7) translateX(50%); opacity: 0.6; } to { transform: scale(1.1) translateX(50%); opacity: 1; } }
+        @keyframes badge-fade-in { from { opacity: 0; transform: translateY(-10px) scale(0.95); } to { opacity: 1; transform: translateY(0) scale(1); } }
+        .subscription-status-badge {
+            display: inline-block;
+            padding: 6px 16px;
+            border-radius: 20px;
+            font-size: 0.9em;
+            font-weight: 700;
+            margin-top: 1rem;
+            letter-spacing: 0.5px;
+            text-shadow: 0 1px 2px rgba(0,0,0,0.1);
+            animation: badge-fade-in 0.6s 0.5s ease-out backwards;
+            display: none;
+        }
+        .subscription-status-badge.free-badge {
+            background: linear-gradient(45deg, #6c757d, #495057);
+            color: white;
+            box-shadow: 0 4px 10px rgba(108, 117, 125, 0.3);
+        }
+        .subscription-status-badge.paid-badge {
+            background: linear-gradient(45deg, var(--accent-premium), #ffca2c);
+            color: #333;
+            box-shadow: 0 4px 10px var(--accent-premium-glow);
+        }
         html { scroll-behavior: smooth; }
         body {
             font-family: var(--app-font); direction: rtl; background-color: var(--app-bg);
@@ -166,7 +189,11 @@
 
     <div class="app-container">
         <div id="standard-view">
-            <header class="app-header"><h1>مولد صدای هوشمند آلفا</h1><p>کیفیت استودیو، قدرت هوش مصنوعی. صدایی فراتر از انتظار خلق کنید.</p></header>
+            <header class="app-header">
+                <h1>مولد صدای هوشمند آلفا</h1>
+                <p>کیفیت استودیو، قدرت هوش مصنوعی. صدایی فراتر از انتظار خلق کنید.</p>
+                <div id="subscription-status-badge-standard" class="subscription-status-badge"></div>
+            </header>
             <main class="main-content">
                 <form id="standard-tts-form" onsubmit="return false;">
                     <div class="form-group"><label for="text-input-standard">📝 متن اصلی</label><textarea id="text-input-standard" rows="5" placeholder="متن خود را برای تبدیل به گفتار اینجا وارد کنید..."></textarea><div class="char-counter-wrapper"><span id="char-count">0</span> / <span id="char-max">50000</span> نویسه</div></div>
@@ -186,7 +213,11 @@
         </div>
 
         <div id="voice-clone-view">
-             <header class="app-header"><h1>شبیه‌سازی صدای آلفا</h1><p>متن دلخواه خود را با صدای خودتان یا هر صدای دیگری بشنوید.</p></header>
+             <header class="app-header">
+                <h1>شبیه‌سازی صدای آلفا</h1>
+                <p>متن دلخواه خود را با صدای خودتان یا هر صدای دیگری بشنوید.</p>
+                <div id="subscription-status-badge-clone" class="subscription-status-badge"></div>
+            </header>
             <main class="main-content">
                  <button id="back-to-standard-btn" title="بازگشت به انتخاب گوینده"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M7.793 2.232a.75.75 0 01-.025 1.06L3.622 7.25h10.128a.75.75 0 010 1.5H3.622l4.146 3.957a.75.75 0 01-1.036 1.086l-5.5-5.25a.75.75 0 010-1.086l5.5-5.25a.75.75 0 011.06.025z" clip-rule="evenodd" /></svg><span>بازگشت</span></button>
                 <form id="voice-clone-form" onsubmit="return false;">
@@ -218,7 +249,7 @@
 
     <script>
     document.addEventListener('DOMContentLoaded', () => {
-        const speakers = [ { id: "Charon", name: "شهاب (مرد)", desc: "صدایی قدرتمند و رسا", imgUrl: "https://uploadkon.ir/uploads/a18705_25IMG-۲۰۲۵۰۷۰۵-۱۱۰۵۴۹.jpg" }, { id: "Zephyr", name: "آوا (زن)", desc: "لطیف و دلنشین", imgUrl: "https://uploadkon.ir/uploads/029605_25IMG-۲۰۲۵۰۷۰۵-۱۱۱۲۵۲.jpg" }, { id: "Achird", name: "نوید (مرد)", desc: "جوان و پرانرژی", imgUrl: "https://uploadkon.ir/uploads/697e05_25IMG-۲۰۲۵۰۶۰۹-۰۶۴۶۳۷.jpg" }, { id: "Zubenelgenubi", name: "آرمان (مرد)", desc: "گرم و صمیمی", imgUrl: "https://uploadkon.ir/uploads/a8a705_25IMG-۲۰۲۵۰۷۰۵-۱۱۱۶۲۹.jpg" }, { id: "Vindemiatrix", name: "مهسا (زن)", desc: "باوقار و رسمی", imgUrl: "https://uploadkon.ir/uploads/d74d05_25IMG-۲۰۲۵۰۷۰۵-۱۱۱۸۳۸.jpg" }, { id: "Sadachbia", name: "سامان (مرد)", desc: "شاداب و پویا", imgUrl: "https://uploadkon.ir/uploads/580205_25IMG-۲۰۲۵۰۷۰۵-۱۱۳۳۳۰.jpg" }, { id: "Sadaltager", name: "آرش (مرد)", desc: "مطمئن و تاثیرگذار", imgUrl: "https://uploadkon.ir/uploads/c4db05_25IMG-۲۰۲۵۰۷۰۵-۱۱۳۵۰۰.jpg" }, { id: "Sulafat", name: "شبنم (زن)", desc: "آرام و متین", imgUrl: "https://uploadkon.ir/uploads/995005_25IMG-۲۰۲۵۰۷۰۵-۱۱۳۶۱۱.jpg" }, { id: "Laomedeia", name: "سحر (زن)", desc: "دوستانه و گیرا", imgUrl: "https://uploadkon.ir/uploads/660705_25IMG-۲۰۲۵۰۷۰۵-۱۱۳۷۵۴.jpg" }, { id: "Achernar", name: "مریم (زن)", desc: "حرفه‌ای و واضح", imgUrl: "https://uploadkon.ir/uploads/4c2905_25IMG-۲۰۲۵۰۷۰۵-۱۱۴۰۳۶.jpg" }, { id: "Alnilam", name: "بهرام (مرد)", desc: "حماسی و نافذ", imgUrl: "https://uploadkon.ir/uploads/f0c205_25IMG-۲۰۲۵۰۷۰۵-۱۱۴۲۲۰.jpg" }, { id: "Schedar", name: "نیکان (مرد)", desc: "مهربان و شیرین", imgUrl: "https://uploadkon.ir/uploads/d37a05_25IMG-۲۰۲۵۰۷۰۵-۱۱۴۳۲۵.jpg" }, { id: "Gacrux", name: "فرناز (زن)", desc: "پخته و قابل اعتماد", imgUrl: "https://uploadkon.ir/uploads/cff705_25IMG-%DB%B2%DB%B0%DB%B2%DB%B5%DB%B0%DB%B7%DB%B0%DB%B5-%DB%B1%DB%B1%DB%B4%DB%B6%DB%B0%DB%B5.jpg" }, { id: "Pulcherrima", name: "سارا (زن)", desc: "جذاب و مدرن", imgUrl: "https://uploadkon.ir/uploads/acb105_25IMG-۲۰۲۵۰۷۰۵-۱۱۴۷۴۳.jpg" }, { id: "Umbriel", name: "مانی (مرد)", desc: "خلاق و متفاوت", imgUrl: "https://uploadkon.ir/uploads/68b505_25IMG-۲۰۲۵۰۷۰۵-۱۱۴۹۱۴.jpg" }, { id: "Algieba", name: "آرتین (مرد)", desc: "با اصالت و شیک", imgUrl: "https://uploadkon.ir/uploads/571005_25IMG-۲۰۲۵۰۷۰۵-۱۱۵۰۳۹.jpg" }, { id: "Despina", name: "دلنواز (زن)", desc: "هنری و احساسی", imgUrl: "https://uploadkon.ir/uploads/5d7805_25IMG-۲۰۲۵۰۷۰۵-۱۱۵۲۲۲.jpg" }, { id: "Erinome", name: "روژان (زن)", desc: "شفاف و گویا", imgUrl: "https://uploadkon.ir/uploads/aa8805_25IMG-۲۰۲۵۰۷۰۵-۱۱۵۳۴۹.jpg" }, { id: "Algenib", name: "امید (مرد)", desc: "انگیزه بخش و مثبت", imgUrl: "https://uploadkon.ir/uploads/a63c05_25IMG-۲۰۲۵۰۷۰۵-۱۱۵۹۲۱.jpg" }, { id: "Orus", name: "بردیا (مرد)", desc: "ورزشی و پرهیجان", imgUrl: "https://uploadkon.ir/uploads/8bc405_25IMG-۲۰۲۵۰۷۰۵-۱۲۱۴۳۳.jpg" }, { id: "Aoede", name: "ترانه (زن)", desc: "موزیکال و خوش‌آهنگ", imgUrl: "https://uploadkon.ir/uploads/9cb405_25IMG-۲۰۲۵۰۷۰۵-۱۲۱۸۵۰.jpg" }, { id: "Callirrhoe", name: "نیکو (زن)", desc: "روایتگر و قصه‌گو", imgUrl: "https://uploadkon.ir/uploads/ee5f05_25IMG-۲۰۲۵۰۷۰۵-۱۲۲۰۴۷.jpg" }, { id: "Autonoe", name: "هستی (زن)", desc: "طبیعی و خودمانی", imgUrl: "https://uploadkon.ir/uploads/9b0505_25IMG-۲۰۲۵۰۷۰۵-۱۲۲۲۲۲.jpg" }, { id: "Enceladus", name: "کامیار (مرد)", desc: "مصمم و جدی", imgUrl: "https://uploadkon.ir/uploads/127805_25IMG-۲۰۲۵۰۷۰۵-۱۲۲۴۱۴.jpg" }, { id: "Iapetus", name: "کیانوش (مرد)", desc: "درخشان و گیرا", imgUrl: "https://uploadkon.ir/uploads/c98b05_25IMG-۲۰۲۵۰۷۰۵-۱۲۲۶۰۵.jpg" }, { id: "Puck", name: "پویا (مرد)", desc: "بازیگوش و سرزنده", imgUrl: "https://uploadkon.ir/uploads/ca3605_25IMG-۲۰۲۵۰۷۰۵-۱۲۲۸۳۹.jpg" }, { id: "Kore", name: "مهتاب (زن)", desc: "نجواگر و آرامش‌بخش", imgUrl: "https://uploadkon.ir/uploads/b66605_25IMG-۲۰۲۵۰۷۰۵-۱۲۳۰۳۵.jpg" }, { id: "Fenrir", name: "سام (مرد)", desc: "جسور و بی‌باک", imgUrl: "https://uploadkon.ir/uploads/03c005_25IMG-۲۰۲۵۰۷۰۵-۱۲۳۴۱۳.jpg" }, { id: "Leda", name: "لیدا (زن)", desc: "کلاسیک و باوقار", imgUrl: "https://uploadkon.ir/uploads/710305_25IMG-۲۰۲۵۰۷۰۵-۱۲۳۷۳۱.jpg" }];
+        const speakers = [ { id: "Charon", name: "شهاب (مرد)", desc: "صدایی قدرمند و رسا", imgUrl: "https://uploadkon.ir/uploads/a18705_25IMG-۲۰۲۵۰۷۰۵-۱۱۰۵۴۹.jpg" }, { id: "Zephyr", name: "آوا (زن)", desc: "لطیف و دلنشین", imgUrl: "https://uploadkon.ir/uploads/029605_25IMG-۲۰۲۵۰۷۰۵-۱۱۱۲۵۲.jpg" }, { id: "Achird", name: "نوید (مرد)", desc: "جوان و پرانرژی", imgUrl: "https://uploadkon.ir/uploads/697e05_25IMG-۲۰۲۵۰۶۰۹-۰۶۴۶۳۷.jpg" }, { id: "Zubenelgenubi", name: "آرمان (مرد)", desc: "گرم و صمیمی", imgUrl: "https://uploadkon.ir/uploads/a8a705_25IMG-۲۰۲۵۰۷۰۵-۱۱۱۶۲۹.jpg" }, { id: "Vindemiatrix", name: "مهسا (زن)", desc: "باوقار و رسمی", imgUrl: "https://uploadkon.ir/uploads/d74d05_25IMG-۲۰۲۵۰۷۰۵-۱۱۱۸۳۸.jpg" }, { id: "Sadachbia", name: "سامان (مرد)", desc: "شاداب و پویا", imgUrl: "https://uploadkon.ir/uploads/580205_25IMG-۲۰۲۵۰۷۰۵-۱۱۳۳۳۰.jpg" }, { id: "Sadaltager", name: "آرش (مرد)", desc: "مطمئن و تاثیرگذار", imgUrl: "https://uploadkon.ir/uploads/c4db05_25IMG-۲۰۲۵۰۷۰۵-۱۱۳۵۰۰.jpg" }, { id: "Sulafat", name: "شبنم (زن)", desc: "آرام و متین", imgUrl: "https://uploadkon.ir/uploads/995005_25IMG-۲۰۲۵۰۷۰۵-۱۱۳۶۱۱.jpg" }, { id: "Laomedeia", name: "سحر (زن)", desc: "دوستانه و گیرا", imgUrl: "https://uploadkon.ir/uploads/660705_25IMG-۲۰۲۵۰۷۰۵-۱۱۳۷۵۴.jpg" }, { id: "Achernar", name: "مریم (زن)", desc: "حرفه‌ای و واضح", imgUrl: "https://uploadkon.ir/uploads/4c2905_25IMG-۲۰۲۵۰۷۰۵-۱۱۴۰۳۶.jpg" }, { id: "Alnilam", name: "بهرام (مرد)", desc: "حماسی و نافذ", imgUrl: "https://uploadkon.ir/uploads/f0c205_25IMG-۲۰۲۵۰۷۰۵-۱۱۴۲۲۰.jpg" }, { id: "Schedar", name: "نیکان (مرد)", desc: "مهربان و شیرین", imgUrl: "https://uploadkon.ir/uploads/d37a05_25IMG-۲۰۲۵۰۷۰۵-۱۱۴۳۲۵.jpg" }, { id: "Gacrux", name: "فرناز (زن)", desc: "پخته و قابل اعتماد", imgUrl: "https://uploadkon.ir/uploads/cff705_25IMG-%DB%B2%DB%B0%DB%B2%DB%B5%DB%B0%DB%B7%DB%B0%DB%B5-%DB%B1%DB%B1%DB%B4%DB%B6%DB%B0%DB%B5.jpg" }, { id: "Pulcherrima", name: "سارا (زن)", desc: "جذاب و مدرن", imgUrl: "https://uploadkon.ir/uploads/acb105_25IMG-۲۰۲۵۰۷۰۵-۱۱۴۷۴۳.jpg" }, { id: "Umbriel", name: "مانی (مرد)", desc: "خلاق و متفاوت", imgUrl: "https://uploadkon.ir/uploads/68b505_25IMG-۲۰۲۵۰۷۰۵-۱۱۴۹۱۴.jpg" }, { id: "Algieba", name: "آرتین (مرد)", desc: "با اصالت و شیک", imgUrl: "https://uploadkon.ir/uploads/571005_25IMG-۲۰۲۵۰۷۰۵-۱۱۵۰۳۹.jpg" }, { id: "Despina", name: "دلنواز (زن)", desc: "هنری و احساسی", imgUrl: "https://uploadkon.ir/uploads/5d7805_25IMG-۲۰۲۵۰۷۰۵-۱۱۵۲۲۲.jpg" }, { id: "Erinome", name: "روژان (زن)", desc: "شفاف و گویا", imgUrl: "https://uploadkon.ir/uploads/aa8805_25IMG-۲۰۲۵۰۷۰۵-۱۱۵۳۴۹.jpg" }, { id: "Algenib", name: "امید (مرد)", desc: "انگیزه بخش و مثبت", imgUrl: "https://uploadkon.ir/uploads/a63c05_25IMG-۲۰۲۵۰۷۰۵-۱۱۵۹۲۱.jpg" }, { id: "Orus", name: "بردیا (مرد)", desc: "ورزشی و پرهیجان", imgUrl: "https://uploadkon.ir/uploads/8bc405_25IMG-۲۰۲۵۰۷۰۵-۱۲۱۴۳۳.jpg" }, { id: "Aoede", name: "ترانه (زن)", desc: "موزیکال و خوش‌آهنگ", imgUrl: "https://uploadkon.ir/uploads/9cb405_25IMG-۲۰۲۵۰۷۰۵-۱۲۱۸۵۰.jpg" }, { id: "Callirrhoe", name: "نیکو (زن)", desc: "روایتگر و قصه‌گو", imgUrl: "https://uploadkon.ir/uploads/ee5f05_25IMG-۲۰۲۵۰۷۰۵-۱۲۲۰۴۷.jpg" }, { id: "Autonoe", name: "هستی (زن)", desc: "طبیعی و خودمانی", imgUrl: "https://uploadkon.ir/uploads/9b0505_25IMG-۲۰۲۵۰۷۰۵-۱۲۲۲۲۲.jpg" }, { id: "Enceladus", name: "کامیار (مرد)", desc: "مصمم و جدی", imgUrl: "https://uploadkon.ir/uploads/127805_25IMG-۲۰۲۵۰۷۰۵-۱۲۲۴۱۴.jpg" }, { id: "Iapetus", name: "کیانوش (مرد)", desc: "درخشان و گیرا", imgUrl: "https://uploadkon.ir/uploads/c98b05_25IMG-۲۰۲۵۰۷۰۵-۱۲۲۶۰۵.jpg" }, { id: "Puck", name: "پویا (مرد)", desc: "بازیگوش و سرزنده", imgUrl: "https://uploadkon.ir/uploads/ca3605_25IMG-۲۰۲۵۰۷۰۵-۱۲۲۸۳۹.jpg" }, { id: "Kore", name: "مهتاب (زن)", desc: "نجواگر و آرامش‌بخش", imgUrl: "https://uploadkon.ir/uploads/b66605_25IMG-۲۰۲۵۰۷۰۵-۱۲۳۰۳۵.jpg" }, { id: "Fenrir", name: "سام (مرد)", desc: "جسور و بی‌باک", imgUrl: "https://uploadkon.ir/uploads/03c005_25IMG-۲۰۲۵۰۷۰۵-۱۲۳۴۱۳.jpg" }, { id: "Leda", name: "لیدا (زن)", desc: "کلاسیک و باوقار", imgUrl: "https://uploadkon.ir/uploads/710305_25IMG-۲۰۲۵۰۷۰۵-۱۲۳۷۳۱.jpg" }];
 
         let userSubscriptionStatus = 'free';
         let userFingerprint = null;
@@ -249,17 +280,17 @@
 
         async function updateUIWithServerStatus() {
             if (!userFingerprint) return;
-            
-            creditStatusMessage.textContent = 'در حال بررسی اعتبار...';
-            creditStatusMessage.classList.add('visible');
 
             if (userSubscriptionStatus === 'paid') {
-                creditStatusMessage.textContent = 'شما به نسخه نامحدود دسترسی دارید.';
+                creditStatusMessage.classList.remove('visible');
                 allGenerateBtns.forEach(btn => btn.disabled = false);
                 upgradeBtn.style.display = 'none';
                 return;
             }
-
+            
+            creditStatusMessage.textContent = 'در حال بررسی اعتبار...';
+            creditStatusMessage.classList.add('visible');
+            
             try {
                 const response = await fetch('/api/check-credit-tts', {
                     method: 'POST',
@@ -289,6 +320,27 @@
 
         function updateUIForSubscriptionStatus(status) {
             userSubscriptionStatus = status;
+            const badgeStandard = document.getElementById('subscription-status-badge-standard');
+            const badgeClone = document.getElementById('subscription-status-badge-clone');
+            const badges = [badgeStandard, badgeClone];
+
+            if (status === 'paid') {
+                badges.forEach(badge => {
+                    if (badge) {
+                        badge.textContent = 'نسخه نامحدود';
+                        badge.className = 'subscription-status-badge paid-badge';
+                        badge.style.display = 'inline-block';
+                    }
+                });
+            } else {
+                badges.forEach(badge => {
+                    if (badge) {
+                        badge.textContent = 'نسخه رایگان';
+                        badge.className = 'subscription-status-badge free-badge';
+                        badge.style.display = 'inline-block';
+                    }
+                });
+            }
             updateUIWithServerStatus();
         }
 
