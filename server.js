@@ -22,10 +22,20 @@ const getNextWorker = () => {
 };
 
 // --- مدیریت داده‌های کاربران در حافظه موقت (In-Memory) ---
-// این متغیر به عنوان پایگاه داده موقت ما عمل می‌کند.
-// با هر بار ری‌استارت شدن سرور، این متغیر خالی خواهد شد.
+// ساختار جدید: { fingerprint: "...", ips: ["...", "..."], count: 0, last_reset: "..." }
 let usage_data_cache = [];
-console.log("Server started in in-memory mode. Usage data will be lost on restart.");
+console.log("Server started in in-memory mode with IP + Fingerprint tracking.");
+
+// --- توابع کمکی ---
+
+// تابع برای دریافت IP کاربر (سازگار با Render)
+const getUserIp = (req) => {
+    const forwarded = req.headers['x-forwarded-for'];
+    if (forwarded) {
+        return forwarded.split(',')[0].trim();
+    }
+    return req.socket.remoteAddress;
+};
 
 // --- Middleware ها و API Endpoints ---
 app.use(express.json());
@@ -42,12 +52,17 @@ app.post('/api/check-credit-tts', (req, res) => {
         return res.json({ credits_remaining: 'unlimited', limit_reached: false });
     }
 
-    const today = new Date().toISOString().split('T')[0]; // تاریخ امروز YYYY-MM-DD
-    let user_record = usage_data_cache.find(u => u.fingerprint === fingerprint);
+    const currentIp = getUserIp(req);
+    const today = new Date().toISOString().split('T')[0];
+
+    // جستجو بر اساس اثر انگشت یا IP
+    let user_record = usage_data_cache.find(u =>
+        u.fingerprint === fingerprint || u.ips.includes(currentIp)
+    );
 
     let credits_remaining = USAGE_LIMIT_TTS;
     if (user_record) {
-        // اگر تاریخ آخرین استفاده برای امروز نیست، اعتبار را ریست کن
+        // ریست روزانه اعتبار
         if (user_record.last_reset !== today) {
             user_record.count = 0;
             user_record.last_reset = today;
@@ -68,20 +83,26 @@ const creditCheckMiddleware = (req, res, next) => {
         return res.status(400).json({ message: "Fingerprint is required." });
     }
 
-    // کاربران پولی بدون محدودیت عبور می‌کنند
     if (subscriptionStatus === 'paid') {
         return next();
     }
 
-    // منطق برای کاربران رایگان
+    // منطق پیشرفته برای کاربران رایگان
+    const currentIp = getUserIp(req);
     const today = new Date().toISOString().split('T')[0];
-    let user_record = usage_data_cache.find(u => u.fingerprint === fingerprint);
+
+    // جستجو بر اساس اثر انگشت یا IP
+    let user_record = usage_data_cache.find(u =>
+        u.fingerprint === fingerprint || u.ips.includes(currentIp)
+    );
 
     if (user_record) {
+        // کاربر موجود پیدا شد
         // ریست کردن اعتبار در صورت تغییر روز
         if (user_record.last_reset !== today) {
             user_record.count = 0;
             user_record.last_reset = today;
+            user_record.ips = [currentIp]; // لیست IP ها را هم برای روز جدید ریست می‌کنیم
         }
 
         // چک کردن اتمام اعتبار
@@ -91,19 +112,31 @@ const creditCheckMiddleware = (req, res, next) => {
                 credits_remaining: 0
             });
         }
+        
         // کسر یک اعتبار
         user_record.count++;
+
+        // اضافه کردن IP جدید به لیست در صورت عدم وجود
+        if (!user_record.ips.includes(currentIp)) {
+            user_record.ips.push(currentIp);
+        }
+
     } else {
-        // ساخت رکورد برای کاربر جدید
-        user_record = { fingerprint, count: 1, last_reset: today };
+        // ساخت رکورد برای کاربر کاملاً جدید
+        user_record = {
+            fingerprint,
+            ips: [currentIp],
+            count: 1,
+            last_reset: today
+        };
         usage_data_cache.push(user_record);
     }
 
-    console.log(`Free user ${fingerprint} used a credit. Remaining today: ${USAGE_LIMIT_TTS - user_record.count}`);
+    console.log(`Free user (fp: ${fingerprint}, ip: ${currentIp}) used a credit. Remaining today: ${USAGE_LIMIT_TTS - user_record.count}`);
     next();
 };
 
-// API اصلی برای تولید صدا (حالا از Middleware اعتبار سنجی استفاده می‌کند)
+// API اصلی برای تولید صدا
 app.use('/api/generate', creditCheckMiddleware, proxy(() => {
     const worker = getNextWorker();
     console.log(`Forwarding request to worker (Round-robin): ${worker}`);
@@ -112,7 +145,6 @@ app.use('/api/generate', creditCheckMiddleware, proxy(() => {
     https: true,
     proxyReqPathResolver: (req) => '/generate',
     proxyReqBodyDecorator: (bodyContent, srcReq) => {
-        // حذف اطلاعات اعتبار سنجی از درخواست قبل از ارسال به سرور TTS
         if (bodyContent) {
             delete bodyContent.fingerprint;
             delete bodyContent.subscriptionStatus;
