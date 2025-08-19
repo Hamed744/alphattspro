@@ -1,8 +1,7 @@
 const express = require('express');
 const proxy = require('express-http-proxy');
 const path = require('path');
-// تغییر اصلی: این روش import صحیح برای نسخه‌های جدید کتابخانه است
-const { HfApi } = require('@huggingface/hub'); 
+const { HfApi } = require('@huggingface/hub'); // این روش استاندارد و صحیح است
 const fs = require('fs/promises');
 
 const app = express();
@@ -31,9 +30,18 @@ const getNextWorker = () => {
 let usage_data_cache = [];
 let data_changed = false;
 let api;
+
 if (HF_TOKEN) {
-    api = new HfApi(HF_TOKEN);
+    try {
+        api = new HfApi(HF_TOKEN);
+        console.log("HfApi initialized successfully.");
+    } catch (e) {
+        console.error("Failed to initialize HfApi:", e);
+        // اگر اینجا خطا رخ دهد، برنامه متوقف می‌شود که بهتر از اجرای ناقص است
+        process.exit(1);
+    }
 }
+
 const CACHE_FILE_PATH = path.join(__dirname, DATASET_FILENAME_TTS);
 
 // تابع برای بارگذاری داده‌ها از هاگینگ فیس در ابتدای کار
