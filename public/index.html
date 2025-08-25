@@ -509,53 +509,73 @@
                     showResultState(false, `خطا: طول متن بیش از حد مجاز (${MAX_CHARS.toLocaleString('fa-IR')} نویسه) است.`);
                     return;
                 }
+                
                 showLoadingState();
+
                 const textChunks = splitTextIntoChunks(textInput.value);
-                const audioBlobs = [];
+                const isMultiPart = textChunks.length > 1;
+                const jobId = isMultiPart ? Date.now() + '-' + Math.random().toString(36).substring(2, 9) : null;
+                
+                const CONCURRENCY_LIMIT = 2;
+                const allAudioBlobs = [];
                 let hasError = false;
-                for (let i = 0; i < textChunks.length; i++) {
-                    const chunk = textChunks[i];
-                    btnText.textContent = `در حال پردازش بخش ${i + 1} از ${textChunks.length}...`;
+
+                for (let i = 0; i < textChunks.length; i += CONCURRENCY_LIMIT) {
+                    const chunkBatch = textChunks.slice(i, i + CONCURRENCY_LIMIT);
+                    
+                    const progress = Math.min(i + chunkBatch.length, textChunks.length);
+                    btnText.textContent = `در حال پردازش ${progress} از ${textChunks.length}...`;
+
                     try {
-                        const res = await fetch('/api/generate', {
-                            method: 'POST',
-                            headers: {'Content-Type': 'application/json'},
-                            body: JSON.stringify({
-                                text: chunk,
-                                prompt: promptInput.value,
-                                speaker: selectedSpeakerIdStorage.value,
-                                temperature: parseFloat(tempSlider.value),
-                                fingerprint: userFingerprint,
-                                subscriptionStatus: userSubscriptionStatus
+                        const promises = chunkBatch.map(chunk => 
+                            fetch('/api/generate', {
+                                method: 'POST',
+                                headers: {'Content-Type': 'application/json'},
+                                body: JSON.stringify({
+                                    text: chunk,
+                                    prompt: promptInput.value,
+                                    speaker: selectedSpeakerIdStorage.value,
+                                    temperature: parseFloat(tempSlider.value),
+                                    fingerprint: userFingerprint,
+                                    subscriptionStatus: userSubscriptionStatus,
+                                    jobId: jobId 
+                                })
+                            }).then(async res => {
+                                if(res.status === 429) {
+                                    const err = await res.json();
+                                    throw new Error(err.message || "اعتبار روزانه شما تمام شده است.");
+                                }
+                                if (!res.ok) {
+                                    throw new Error(await res.text() || `خطای سرور (${res.status})`);
+                                }
+                                return res.blob();
+                            }).then(blob => {
+                                if (!blob.type.startsWith('audio/')) {
+                                    throw new Error(`پاسخ دریافتی فایل صوتی معتبر نبود.`);
+                                }
+                                return blob;
                             })
-                        });
-                        if(res.status === 429) {
-                            const err = await res.json();
-                            throw new Error(err.message || "اعتبار روزانه شما تمام شده است.");
-                        }
-                        if (!res.ok) {
-                            throw new Error(await res.text() || `خطای سرور در پردازش بخش ${i + 1} (${res.status})`);
-                        }
-                        const blob = await res.blob();
-                        if (blob.type.startsWith('audio/')) {
-                            audioBlobs.push(blob);
-                        } else {
-                            throw new Error(`پاسخ دریافتی برای بخش ${i + 1} فایل صوتی معتبر نبود.`);
-                        }
+                        );
+
+                        const batchResults = await Promise.all(promises);
+                        allAudioBlobs.push(...batchResults);
+
                     } catch (error) {
                         showResultState(false, error.message);
                         hasError = true;
                         break;
                     }
                 }
-                if (!hasError && audioBlobs.length > 0) {
+
+                if (!hasError && allAudioBlobs.length > 0) {
                     btnText.textContent = 'ادغام فایل‌های صوتی...';
-                    const finalBlob = new Blob(audioBlobs, { type: audioBlobs[0].type });
+                    const finalBlob = new Blob(allAudioBlobs, { type: allAudioBlobs[0].type });
                     mainAudioPlayer.src = URL.createObjectURL(finalBlob);
                     showResultState(true);
                 } else if (!hasError) {
                     showResultState(false, 'هیچ فایل صوتی تولید نشد.');
                 }
+                
                 updateUIWithServerStatus();
             });
 
