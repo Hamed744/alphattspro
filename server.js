@@ -5,12 +5,9 @@ const path = require('path');
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// --- تنظیمات اصلی ---
-const USAGE_LIMIT_TTS = 5; // محدودیت روزانه برای کاربران رایگان
-// آدرس دقیق اسپیس پادکست خود را اینجا وارد کنید
+const USAGE_LIMIT_TTS = 5;
 const PODCAST_SPACE_URL = 'https://ezmary-padgenpro2.hf.space/';
 
-// --- تنظیمات پراکسی ---
 const HF_WORKERS = [
     'hamed744-ttspro.hf.space',
     'hamed744-ttspro2.hf.space',
@@ -23,7 +20,6 @@ const getNextWorker = () => {
     return worker;
 };
 
-// --- مدیریت داده‌های کاربران در حافظه موقت ---
 let usage_data_cache = [];
 console.log("Server started in in-memory mode with IP + Fingerprint tracking.");
 
@@ -35,8 +31,8 @@ const getUserIp = (req) => {
     return req.socket.remoteAddress;
 };
 
-// --- Middleware ها و API Endpoints ---
-app.use(express.json());
+app.use(express.json({ limit: '500mb' }));
+app.use(express.urlencoded({ limit: '500mb', extended: true }));
 app.use(express.static(path.join(__dirname, 'public')));
 
 app.post('/api/check-credit-tts', (req, res) => {
@@ -61,21 +57,15 @@ app.post('/api/check-credit-tts', (req, res) => {
     res.json({ credits_remaining, limit_reached: credits_remaining <= 0 });
 });
 
-// Middleware برای کنترل دسترسی
 const creditCheckMiddleware = (req, res, next) => {
-    // *** شروع تغییر اصلی ***
-    // 1. چک کردن هدر Referer برای شناسایی درخواست از اسپیس پادکست
     const referer = req.headers['referer'];
     if (referer && referer.startsWith(PODCAST_SPACE_URL)) {
         console.log(`Request from trusted Podcast Space (${referer}) detected. Bypassing credit check.`);
-        return next(); // اجازه عبور نامحدود برای اسپیس پادکست
+        return next();
     }
-    // *** پایان تغییر اصلی ***
 
-    // 2. ادامه منطق قبلی برای کاربران عادی (از اپلیکیشن TTS)
     const { fingerprint, subscriptionStatus } = req.body;
     if (!fingerprint) {
-        // اگر اثر انگشت وجود نداشته باشد (ممکن است درخواست از جای دیگری باشد)، آن را مسدود کن
         console.warn(`Blocking request with no fingerprint from referer: ${referer || 'none'}`);
         return res.status(400).json({ message: "Fingerprint is required for this request." });
     }
