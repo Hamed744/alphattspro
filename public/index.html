@@ -119,7 +119,20 @@
         #standard-view .char-counter-wrapper { font-size: 0.85em; color: var(--text-tertiary); text-align: left; margin-top: 0.75rem; padding: 0 0.2rem; }
         #standard-view #char-count { font-weight: 600; color: var(--accent-primary); }
         #standard-view #selected-speaker-display { text-align: center; margin-top: 1.5rem; }
-        #standard-view #selected-speaker-card { display: inline-flex; align-items: center; background: linear-gradient(135deg, var(--input-bg) 0%, var(--panel-bg) 100%); border-radius: 50px; padding: 0.75rem 0.75rem 0.75rem 1.5rem; box-shadow: var(--shadow-md); border: 1px solid var(--panel-border); transition: var(--transition-bounce); cursor: pointer; margin-bottom: 1.5rem; }
+        #standard-view #selected-speaker-card {
+            display: inline-flex;
+            align-items: center;
+            background: linear-gradient(135deg, var(--input-bg) 0%, var(--panel-bg) 100%);
+            border-radius: 50px;
+            padding: 0.75rem 0.75rem 0.75rem 1.5rem;
+            box-shadow: var(--shadow-md);
+            border: 1px solid var(--panel-border);
+            transition: var(--transition-bounce);
+            cursor: pointer;
+            margin-bottom: 1.5rem;
+            min-width: 300px; /* این خط اضافه شده */
+            justify-content: flex-start; /* این خط اضافه شده */
+        }
         #standard-view #selected-speaker-card:hover { transform: translateY(-6px) scale(1.03); box-shadow: var(--shadow-lg); border-color: var(--accent-primary); }
         #standard-view #selected-speaker-card img { width: 60px; height: 60px; border-radius: 50%; object-fit: cover; margin-left: 1rem; border: 3px solid var(--accent-secondary); box-shadow: 0 0 15px -3px var(--accent-secondary-glow); transition: var(--transition-smooth); }
         #standard-view #selected-speaker-info { text-align: right; }
@@ -179,7 +192,12 @@
             body { padding: 1.5rem 0; }
             .main-content { padding: 1.5rem; }
             .app-header h1 { font-size: 2em; }
-            #standard-view #selected-speaker-card { flex-direction: column; padding: 1rem; border-radius: var(--radius-card); }
+            #standard-view #selected-speaker-card {
+                flex-direction: column;
+                padding: 1rem;
+                border-radius: var(--radius-card);
+                min-width: 200px; /* سایز برای موبایل */
+            }
             #standard-view #selected-speaker-card img { margin-left: 0; margin-bottom: 1rem; }
             #back-to-standard-btn { top: 1rem; left: 1rem; padding: 0.5rem 0.8rem; font-size: 0.8em; }
         }
@@ -279,6 +297,88 @@
             }
             return chunks.filter(chunk => chunk.length > 0);
         }
+
+        async function mergeAudioBlobs(blobs) {
+            if (!blobs || blobs.length === 0) return null;
+            if (blobs.length === 1) return blobs[0];
+
+            const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+            const decodedBuffers = await Promise.all(
+                blobs.map(blob => blob.arrayBuffer().then(buffer => audioContext.decodeAudioData(buffer)))
+            );
+
+            const totalLength = decodedBuffers.reduce((acc, buffer) => acc + buffer.length, 0);
+            const firstBuffer = decodedBuffers[0];
+            const finalBuffer = audioContext.createBuffer(
+                firstBuffer.numberOfChannels,
+                totalLength,
+                firstBuffer.sampleRate
+            );
+
+            let offset = 0;
+            for (const buffer of decodedBuffers) {
+                for (let channel = 0; channel < buffer.numberOfChannels; channel++) {
+                    finalBuffer.copyToChannel(buffer.getChannelData(channel), channel, offset);
+                }
+                offset += buffer.length;
+            }
+
+            return bufferToWave(finalBuffer);
+        }
+
+        function bufferToWave(abuffer) {
+            const numOfChan = abuffer.numberOfChannels;
+            const length = abuffer.length * numOfChan * 2 + 44;
+            const buffer = new ArrayBuffer(length);
+            const view = new DataView(buffer);
+            const channels = [];
+            let i;
+            let sample;
+            let offset = 0;
+            let pos = 0;
+
+            const setUint16 = (data) => {
+                view.setUint16(pos, data, true);
+                pos += 2;
+            };
+
+            const setUint32 = (data) => {
+                view.setUint32(pos, data, true);
+                pos += 4;
+            };
+
+            setUint32(0x46464952); // "RIFF"
+            setUint32(length - 8); // file length - 8
+            setUint32(0x45564157); // "WAVE"
+
+            setUint32(0x20746d66); // "fmt " chunk
+            setUint32(16); // length = 16
+            setUint16(1); // PCM (uncompressed)
+            setUint16(numOfChan);
+            setUint32(abuffer.sampleRate);
+            setUint32(abuffer.sampleRate * 2 * numOfChan); // avg. bytes/sec
+            setUint16(numOfChan * 2); // block-align
+            setUint16(16); // 16-bit
+
+            setUint32(0x61746164); // "data" - chunk
+            setUint32(length - pos - 4); // chunk length
+
+            for (i = 0; i < abuffer.numberOfChannels; i++) {
+                channels.push(abuffer.getChannelData(i));
+            }
+
+            while (pos < length) {
+                for (i = 0; i < numOfChan; i++) {
+                    sample = Math.max(-1, Math.min(1, channels[i][offset]));
+                    sample = (0.5 + sample < 0 ? sample * 32768 : sample * 32767) | 0;
+                    view.setInt16(pos, sample, true);
+                    pos += 2;
+                }
+                offset++;
+            }
+            return new Blob([view], { type: 'audio/wav' });
+        }
+
 
         const speakers = [ { id: "Charon", name: "شهاب (مرد)", desc: "صدایی قدرمند و رسا", imgUrl: "https://uploadkon.ir/uploads/a18705_25IMG-۲۰۲۵۰۷۰۵-۱۱۰۵۴۹.jpg" }, { id: "Zephyr", name: "آوا (زن)", desc: "لطیف و دلنشین", imgUrl: "https://uploadkon.ir/uploads/029605_25IMG-۲۰۲۵۰۷۰۵-۱۱۱۲۵۲.jpg" }, { id: "Achird", name: "نوید (مرد)", desc: "جوان و پرانرژی", imgUrl: "https://uploadkon.ir/uploads/697e05_25IMG-۲۰۲۵۰۶۰۹-۰۶۴۶۳۷.jpg" }, { id: "Zubenelgenubi", name: "آرمان (مرد)", desc: "گرم و صمیمی", imgUrl: "https://uploadkon.ir/uploads/a8a705_25IMG-۲۰۲۵۰۷۰۵-۱۱۱۶۲۹.jpg" }, { id: "Vindemiatrix", name: "مهسا (زن)", desc: "باوقار و رسمی", imgUrl: "https://uploadkon.ir/uploads/d74d05_25IMG-۲۰۲۵۰۷۰۵-۱۱۱۸۳۸.jpg" }, { id: "Sadachbia", name: "سامان (مرد)", desc: "شاداب و پویا", imgUrl: "https://uploadkon.ir/uploads/580205_25IMG-۲۰۲۵۰۷۰۵-۱۱۳۳۳۰.jpg" }, { id: "Sadaltager", name: "آرش (مرد)", desc: "مطمئن و تاثیرگذار", imgUrl: "https://uploadkon.ir/uploads/c4db05_25IMG-۲۰۲۵۰۷۰۵-۱۱۳۵۰۰.jpg" }, { id: "Sulafat", name: "شبنم (زن)", desc: "آرام و متین", imgUrl: "https://uploadkon.ir/uploads/995005_25IMG-۲۰۲۵۰۷۰۵-۱۱۳۶۱۱.jpg" }, { id: "Laomedeia", name: "سحر (زن)", desc: "دوستانه و گیرا", imgUrl: "https://uploadkon.ir/uploads/660705_25IMG-۲۰۲۵۰۷۰۵-۱۱۳۷۵۴.jpg" }, { id: "Achernar", name: "مریم (زن)", desc: "حرفه‌ای و واضح", imgUrl: "https://uploadkon.ir/uploads/4c2905_25IMG-۲۰۲۵۰۷۰۵-۱۱۴۰۳۶.jpg" }, { id: "Alnilam", name: "بهرام (مرد)", desc: "حماسی و نافذ", imgUrl: "https://uploadkon.ir/uploads/f0c205_25IMG-۲۰۲۵۰۷۰۵-۱۱۴۲۲۰.jpg" }, { id: "Schedar", name: "نیکان (مرد)", desc: "مهربان و شیرین", imgUrl: "https://uploadkon.ir/uploads/d37a05_25IMG-۲۰۲۵۰۷۰۵-۱۱۴۳۲۵.jpg" }, { id: "Gacrux", name: "فرناز (زن)", desc: "پخته و قابل اعتماد", imgUrl: "https://uploadkon.ir/uploads/cff705_25IMG-%DB%B2%DB%B0%DB%B2%DB%B5%DB%B0%DB%B7%DB%B0%DB%B5-%DB%B1%DB%B1%DB%B4%DB%B6%DB%B0%DB%B5.jpg" }, { id: "Pulcherrima", name: "سارا (زن)", desc: "جذاب و مدرن", imgUrl: "https://uploadkon.ir/uploads/acb105_25IMG-۲۰۲۵۰۷۰۵-۱۱۴۷۴۳.jpg" }, { id: "Umbriel", name: "مانی (مرد)", desc: "خلاق و متفاوت", imgUrl: "https://uploadkon.ir/uploads/68b505_25IMG-۲۰۲۵۰۷۰۵-۱۱۴۹۱۴.jpg" }, { id: "Algieba", name: "آرتین (مرد)", desc: "با اصالت و شیک", imgUrl: "https://uploadkon.ir/uploads/571005_25IMG-۲۰۲۵۰۷۰۵-۱۱۵۰۳۹.jpg" }, { id: "Despina", name: "دلنواز (زن)", desc: "هنری و احساسی", imgUrl: "https://uploadkon.ir/uploads/5d7805_25IMG-۲۰۲۵۰۷۰۵-۱۱۵۲۲۲.jpg" }, { id: "Erinome", name: "روژان (زن)", desc: "شفاف و گویا", imgUrl: "https://uploadkon.ir/uploads/aa8805_25IMG-۲۰۲۵۰۷۰۵-۱۱۵۳۴۹.jpg" }, { id: "Algenib", name: "امید (مرد)", desc: "انگیزه بخش و مثبت", imgUrl: "https://uploadkon.ir/uploads/a63c05_25IMG-۲۰۲۵۰۷۰۵-۱۱۵۹۲۱.jpg" }, { id: "Orus", name: "بردیا (مرد)", desc: "ورزشی و پرهیجان", imgUrl: "https://uploadkon.ir/uploads/8bc405_25IMG-۲۰۲۵۰۷۰۵-۱۲۱۴۳۳.jpg" }, { id: "Aoede", name: "ترانه (زن)", desc: "موزیکال و خوش‌آهنگ", imgUrl: "https://uploadkon.ir/uploads/9cb405_25IMG-۲۰۲۵۰۷۰۵-۱۲۱۸۵۰.jpg" }, { id: "Callirrhoe", name: "نیکو (زن)", desc: "روایتگر و قصه‌گو", imgUrl: "https://uploadkon.ir/uploads/ee5f05_25IMG-۲۰۲۵۰۷۰۵-۱۲۲۰۴۷.jpg" }, { id: "Autonoe", name: "هستی (زن)", desc: "طبیعی و خودمانی", imgUrl: "https://uploadkon.ir/uploads/9b0505_25IMG-۲۰۲۵۰۷۰۵-۱۲۲۲۲۲.jpg" }, { id: "Enceladus", name: "کامیار (مرد)", desc: "مصمم و جدی", imgUrl: "https://uploadkon.ir/uploads/127805_25IMG-۲۰۲۵۰۷۰۵-۱۲۲۴۱۴.jpg" }, { id: "Iapetus", name: "کیانوش (مرد)", desc: "درخشان و گیرا", imgUrl: "https://uploadkon.ir/uploads/c98b05_25IMG-۲۰۲۵۰۷۰۵-۱۲۲۶۰۵.jpg" }, { id: "Puck", name: "پویا (مرد)", desc: "بازیگوش و سرزنده", imgUrl: "https://uploadkon.ir/uploads/ca3605_25IMG-۲۰۲۵۰۷۰۵-۱۲۲۸۳۹.jpg" }, { id: "Kore", name: "مهتاب (زن)", desc: "نجواگر و آرامش‌بخش", imgUrl: "https://uploadkon.ir/uploads/b66605_25IMG-۲۰۲۵۰۷۰۵-۱۲۳۰۳۵.jpg" }, { id: "Fenrir", name: "سام (مرد)", desc: "جسور و بی‌باک", imgUrl: "https://uploadkon.ir/uploads/03c005_25IMG-۲۰۲۵۰۷۰۵-۱۲۳۴۱۳.jpg" }, { id: "Leda", name: "لیدا (زن)", desc: "کلاسیک و باوقار", imgUrl: "https://uploadkon.ir/uploads/710305_25IMG-۲۰۲۵۰۷۰۵-۱۲۳۷۳۱.jpg" }];
 
@@ -569,9 +669,17 @@
 
                 if (!hasError && allAudioBlobs.length > 0) {
                     btnText.textContent = 'ادغام فایل‌های صوتی...';
-                    const finalBlob = new Blob(allAudioBlobs, { type: allAudioBlobs[0].type });
-                    mainAudioPlayer.src = URL.createObjectURL(finalBlob);
-                    showResultState(true);
+                    try {
+                        const finalBlob = await mergeAudioBlobs(allAudioBlobs);
+                        if(finalBlob){
+                            mainAudioPlayer.src = URL.createObjectURL(finalBlob);
+                            showResultState(true);
+                        } else {
+                            throw new Error("ادغام فایل‌های صوتی ناموفق بود.");
+                        }
+                    } catch (error) {
+                        showResultState(false, `خطا در پردازش نهایی صدا: ${error.message}`);
+                    }
                 } else if (!hasError) {
                     showResultState(false, 'هیچ فایل صوتی تولید نشد.');
                 }
