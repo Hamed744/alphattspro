@@ -132,6 +132,7 @@
             border: 1px solid var(--panel-border);
             transition: var(--transition-bounce);
             cursor: pointer;
+            vertical-align: middle;
             min-width: 280px;
         }
         #standard-view #selected-speaker-card:hover { transform: translateY(-6px) scale(1.03); box-shadow: var(--shadow-lg); border-color: var(--accent-primary); }
@@ -154,8 +155,8 @@
             font-size: 1em;
             transition: var(--transition-smooth);
             box-shadow: var(--shadow-md);
-            margin-right: 1rem; /* فاصله از کارت گوینده */
-            vertical-align: middle; /* تراز عمودی با کارت */
+            margin-right: 1rem;
+            vertical-align: middle;
         }
         #standard-view #change-speaker-btn:hover { background: var(--input-bg); border-color: var(--accent-primary); color: var(--accent-primary); transform: translateY(-3px) scale(1.05); box-shadow: var(--shadow-lg); }
         #standard-view .label-with-info { display: flex; align-items: center; gap: 0.5rem; margin-bottom: 1.2rem; }
