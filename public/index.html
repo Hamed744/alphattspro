@@ -118,7 +118,13 @@
         .audio-speed-btn:hover { background-color: var(--input-bg); }
         #standard-view .char-counter-wrapper { font-size: 0.85em; color: var(--text-tertiary); text-align: left; margin-top: 0.75rem; padding: 0 0.2rem; }
         #standard-view #char-count { font-weight: 600; color: var(--accent-primary); }
-        #standard-view #selected-speaker-display { text-align: center; margin-top: 1.5rem; }
+        #standard-view #selected-speaker-display {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 1.5rem;
+            flex-wrap: wrap;
+        }
         #standard-view #selected-speaker-card {
             display: inline-flex;
             align-items: center;
@@ -129,9 +135,7 @@
             border: 1px solid var(--panel-border);
             transition: var(--transition-bounce);
             cursor: pointer;
-            margin-bottom: 1.5rem;
-            min-width: 300px; /* این خط اضافه شده */
-            justify-content: flex-start; /* این خط اضافه شده */
+            min-width: 280px;
         }
         #standard-view #selected-speaker-card:hover { transform: translateY(-6px) scale(1.03); box-shadow: var(--shadow-lg); border-color: var(--accent-primary); }
         #standard-view #selected-speaker-card img { width: 60px; height: 60px; border-radius: 50%; object-fit: cover; margin-left: 1rem; border: 3px solid var(--accent-secondary); box-shadow: 0 0 15px -3px var(--accent-secondary-glow); transition: var(--transition-smooth); }
@@ -188,17 +192,16 @@
         #credit-status-message.visible { opacity: 1; transform: translateY(0); height: auto; }
         #upgrade-premium-btn { display: none; width: 100%; margin-top: 1.5rem; padding: 1rem; font-family: var(--app-font); font-size: 1.1em; font-weight: 800; color: #212529; background: linear-gradient(95deg, #FFD54F, var(--accent-premium) 100%); border: none; border-radius: var(--radius-btn); cursor: pointer; transition: transform 0.2s ease, box-shadow 0.2s ease; box-shadow: 0 8px 20px -5px var(--accent-premium-glow); }
         #upgrade-premium-btn:hover { transform: translateY(-3px); box-shadow: 0 12px 25px -5px rgba(255, 193, 7, 0.4); }
+        @media (max-width: 768px) {
+            #standard-view #selected-speaker-display {
+                flex-direction: column;
+                gap: 1rem;
+            }
+        }
         @media (max-width: 600px) {
             body { padding: 1.5rem 0; }
             .main-content { padding: 1.5rem; }
             .app-header h1 { font-size: 2em; }
-            #standard-view #selected-speaker-card {
-                flex-direction: column;
-                padding: 1rem;
-                border-radius: var(--radius-card);
-                min-width: 200px; /* سایز برای موبایل */
-            }
-            #standard-view #selected-speaker-card img { margin-left: 0; margin-bottom: 1rem; }
             #back-to-standard-btn { top: 1rem; left: 1rem; padding: 0.5rem 0.8rem; font-size: 0.8em; }
         }
     </style>
@@ -216,7 +219,19 @@
                 <form id="standard-tts-form" onsubmit="return false;">
                     <div class="form-group"><label for="text-input-standard">📝 متن اصلی</label><textarea id="text-input-standard" rows="5" placeholder="متن خود را برای تبدیل به گفتار اینجا وارد کنید..."></textarea><div class="char-counter-wrapper"><span id="char-count">0</span> / <span id="char-max">50000</span> نویسه</div></div>
                     <div class="form-group"><label for="prompt-input-standard">🗣️ توصیف لحن و احساس (اختیاری)</label><input type="text" id="prompt-input-standard" placeholder="مثال: با لحنی آرام و قصه‌گو"></div>
-                    <div class="form-group"><label>🎤 گوینده منتخب</label><div id="selected-speaker-display"><div id="selected-speaker-card" title="برای تغییر گوینده کلیک کنید"><img id="selected-speaker-img" src="" alt="عکس گوینده"><div id="selected-speaker-info"><h3 id="selected-speaker-name"></h3><p id="selected-speaker-desc"></p></div></div><button type="button" id="change-speaker-btn">تغییر گوینده</button></div></div>
+                    <div class="form-group">
+                        <label>🎤 گوینده منتخب</label>
+                        <div id="selected-speaker-display">
+                            <div id="selected-speaker-card" title="برای تغییر گوینده کلیک کنید">
+                                <img id="selected-speaker-img" src="" alt="عکس گوینده">
+                                <div id="selected-speaker-info">
+                                    <h3 id="selected-speaker-name"></h3>
+                                    <p id="selected-speaker-desc"></p>
+                                </div>
+                            </div>
+                            <button type="button" id="change-speaker-btn">تغییر گوینده</button>
+                        </div>
+                    </div>
                     <div class="form-group"><div class="label-with-info"><label for="temperature-slider-standard">🌡️ خلاقیت و پویایی صدا</label><div class="info-icon" id="temp-info-icon" role="button" tabindex="0" aria-label="اطلاعات بیشتر">!</div></div><div class="slider-container"><input type="range" id="temperature-slider-standard" class="temperature-slider" min="0.1" max="1.5" step="0.05" value="0.9"><span id="temperature-value-standard" class="temperature-value">0.9</span></div></div>
                     <p id="credit-status-message"></p>
                     <button type="submit" id="generate-btn-standard" class="generate-btn"><span class="btn-text">✨ خلق صدا با آلفا</span><div class="spinner"></div></button>
