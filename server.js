@@ -21,7 +21,10 @@ const getNextWorker = () => {
 };
 
 let usage_data_cache = [];
-console.log("Server started in in-memory mode with IP + Fingerprint tracking.");
+// یک Set برای نگهداری شناسه‌هایی که اعتبارشان کسر شده است
+const processed_job_ids = new Set();
+
+console.log("Server started with Job ID based credit system.");
 
 const getUserIp = (req) => {
     const forwarded = req.headers['x-forwarded-for'];
@@ -31,8 +34,7 @@ const getUserIp = (req) => {
     return req.socket.remoteAddress;
 };
 
-app.use(express.json({ limit: '500mb' }));
-app.use(express.urlencoded({ limit: '500mb', extended: true }));
+app.use(express.json({ limit: '50mb' }));
 app.use(express.static(path.join(__dirname, 'public')));
 
 app.post('/api/check-credit-tts', (req, res) => {
@@ -60,17 +62,22 @@ app.post('/api/check-credit-tts', (req, res) => {
 const creditCheckMiddleware = (req, res, next) => {
     const referer = req.headers['referer'];
     if (referer && referer.startsWith(PODCAST_SPACE_URL)) {
-        console.log(`Request from trusted Podcast Space (${referer}) detected. Bypassing credit check.`);
         return next();
     }
 
-    const { fingerprint, subscriptionStatus } = req.body;
+    const { fingerprint, subscriptionStatus, jobId } = req.body;
+    
     if (!fingerprint) {
-        console.warn(`Blocking request with no fingerprint from referer: ${referer || 'none'}`);
         return res.status(400).json({ message: "Fingerprint is required for this request." });
     }
 
     if (subscriptionStatus === 'paid') {
+        return next();
+    }
+
+    // اگر درخواست دارای شناسه عملیات (jobId) است و این شناسه قبلا پردازش شده، اجازه عبور بده
+    if (jobId && processed_job_ids.has(jobId)) {
+        console.log(`Job ID ${jobId} already processed. Bypassing credit check.`);
         return next();
     }
     
@@ -87,6 +94,7 @@ const creditCheckMiddleware = (req, res, next) => {
         if (user_record.count >= USAGE_LIMIT_TTS) {
             return res.status(429).json({ message: "شما به محدودیت روزانه خود برای تولید صدا رسیده‌اید...", credits_remaining: 0 });
         }
+        // فقط در صورتی اعتبار را کم کن که اولین درخواست از یک عملیات جدید باشد یا عملیات شناسه نداشته باشد
         user_record.count++;
         if (!user_record.ips.includes(currentIp)) {
             user_record.ips.push(currentIp);
@@ -96,21 +104,35 @@ const creditCheckMiddleware = (req, res, next) => {
         usage_data_cache.push(user_record);
     }
 
-    console.log(`Free user (fp: ${fingerprint}, ip: ${currentIp}) used a credit. Remaining today: ${USAGE_LIMIT_TTS - user_record.count}`);
+    // اگر درخواست دارای شناسه عملیات بود، آن را به لیست پردازش شده‌ها اضافه کن
+    if (jobId) {
+        processed_job_ids.add(jobId);
+        console.log(`First request for Job ID ${jobId}. Credit consumed. User has ${USAGE_LIMIT_TTS - user_record.count} credits left.`);
+        // شناسه را پس از ۱۰ دقیقه پاک کن تا حافظه پر نشود
+        setTimeout(() => {
+            processed_job_ids.delete(jobId);
+            console.log(`Job ID ${jobId} expired and removed from cache.`);
+        }, 10 * 60 * 1000); // 10 minutes
+    } else {
+         console.log(`Single request (no Job ID). Credit consumed. User has ${USAGE_LIMIT_TTS - user_record.count} credits left.`);
+    }
+
     next();
 };
 
 app.use('/api/generate', creditCheckMiddleware, proxy(() => {
     const worker = getNextWorker();
-    console.log(`Forwarding request to worker (Round-robin): ${worker}`);
+    console.log(`Forwarding request to worker: ${worker}`);
     return `https://${worker}`;
 }, {
     https: true,
     proxyReqPathResolver: (req) => '/generate',
     proxyReqBodyDecorator: (bodyContent, srcReq) => {
         if (bodyContent) {
+            // حذف فیلدهای اضافی قبل از ارسال به سرویس هوش مصنوعی
             delete bodyContent.fingerprint;
             delete bodyContent.subscriptionStatus;
+            delete bodyContent.jobId;
         }
         return bodyContent;
     },
@@ -125,7 +147,5 @@ app.get('*', (req, res) => {
 });
 
 app.listen(PORT, () => {
-    console.log(`Smart proxy server with in-memory credit system listening on port ${PORT}`);
-    console.log(`Trusted Referer for unlimited access: ${PODCAST_SPACE_URL}`);
-    console.log(`Distributing load across (Round-robin): ${HF_WORKERS.join(', ')}`);
+    console.log(`Smart proxy server listening on port ${PORT}`);
 });
