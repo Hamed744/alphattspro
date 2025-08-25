@@ -133,7 +133,7 @@
             transition: var(--transition-bounce);
             cursor: pointer;
             vertical-align: middle;
-            min-width: 280px;
+            min-width: 280px; /* این خط اصلی‌ترین اصلاح است */
         }
         #standard-view #selected-speaker-card:hover { transform: translateY(-6px) scale(1.03); box-shadow: var(--shadow-lg); border-color: var(--accent-primary); }
         #standard-view #selected-speaker-card img { width: 60px; height: 60px; border-radius: 50%; object-fit: cover; margin-left: 1rem; border: 3px solid var(--accent-secondary); box-shadow: 0 0 15px -3px var(--accent-secondary-glow); transition: var(--transition-smooth); }
@@ -644,7 +644,7 @@
                 const jobId = isMultiPart ? Date.now() + '-' + Math.random().toString(36).substring(2, 9) : null;
                 
                 const BATCH_SIZE = 10;
-                const allAudioBlobs = [];
+                const allAudioBlobs = new Array(textChunks.length); // Use a fixed-size array to preserve order
                 let hasError = false;
 
                 for (let i = 0; i < textChunks.length; i += BATCH_SIZE) {
@@ -654,7 +654,7 @@
                     btnText.textContent = `در حال پردازش ${progress} از ${textChunks.length}...`;
 
                     try {
-                        const promises = chunkBatch.map(chunk => 
+                        const promises = chunkBatch.map((chunk, indexInBatch) => 
                             fetch('/api/generate', {
                                 method: 'POST',
                                 headers: {'Content-Type': 'application/json'},
@@ -680,12 +680,12 @@
                                 if (!blob.type.startsWith('audio/')) {
                                     throw new Error(`پاسخ دریافتی فایل صوتی معتبر نبود.`);
                                 }
-                                return blob;
+                                // Place the blob in the correct position in the main array
+                                allAudioBlobs[i + indexInBatch] = blob;
                             })
                         );
 
-                        const batchResults = await Promise.all(promises);
-                        allAudioBlobs.push(...batchResults);
+                        await Promise.all(promises);
 
                     } catch (error) {
                         showResultState(false, error.message);
@@ -694,7 +694,7 @@
                     }
                 }
 
-                if (!hasError && allAudioBlobs.length > 0) {
+                if (!hasError && allAudioBlobs.filter(Boolean).length > 0) {
                     btnText.textContent = 'ادغام فایل‌های صوتی...';
                     try {
                         const finalBlob = await mergeAudioBlobs(allAudioBlobs);
