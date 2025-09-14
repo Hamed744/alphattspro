@@ -27,7 +27,7 @@ const processed_job_ids = new Set();
 console.log("Server started with Job ID based credit system.");
 
 const getUserIp = (req) => {
-    // مهم: پراکسی وردپرس باید هدر 'x-forwarded-for' را ارسال کند
+    // مهم: به لطف این کد، IP کاربر اصلی که از طریق وردپرس ارسال می‌شود، شناسایی خواهد شد
     const forwarded = req.headers['x-forwarded-for'];
     if (forwarded) {
         return forwarded.split(',')[0].trim();
@@ -35,33 +35,41 @@ const getUserIp = (req) => {
     return req.socket.remoteAddress;
 };
 
+// --- START: کد جدید برای امنیت ---
+// این میان‌افزار امنیتی، درخواست‌ها را کنترل می‌کند
+const authMiddleware = (req, res, next) => {
+    // 1. بررسی می‌کند آیا درخواست از طرف سرور وردپرس ما (با کلید مخفی) آمده است
+    const receivedSecret = req.headers['x-internal-api-key'];
+    const expectedSecret = process.env.INTERNAL_API_SECRET; // کلید مخفی را از متغیرهای محیطی رندر می‌خواند
+
+    if (expectedSecret && receivedSecret === expectedSecret) {
+        // اگر کلید صحیح بود، اجازه عبور می‌دهد
+        return next();
+    }
+
+    // 2. اگر کلید مخفی وجود نداشت، بررسی می‌کند آیا درخواست از لینک پادکست قدیمی است
+    const referer = req.headers['referer'];
+    if (referer && referer.startsWith(PODCAST_SPACE_URL)) {
+        // این یک استثنا برای حفظ عملکرد قبلی است
+        return next();
+    }
+
+    // 3. اگر هیچ‌کدام از شرایط بالا برقرار نبود، دسترسی را مسدود می‌کند
+    console.warn(`Forbidden attempt from IP: ${getUserIp(req)} with referer: ${referer}`);
+    return res.status(403).json({ message: 'Forbidden: You do not have permission to access this resource.' });
+};
+// --- END: کد جدید برای امنیت ---
+
 app.use(express.json({ limit: '50mb' }));
 app.use(express.static(path.join(__dirname, 'public')));
 
 
-// --- شروع بخش امنیتی اضافه شده ---
-
-// این Middleware برای بررسی کلید مخفی API است
-const authMiddleware = (req, res, next) => {
-    const receivedSecret = req.headers['x-internal-api-key'];
-    const expectedSecret = process.env.INTERNAL_API_SECRET;
-
-    // اگر کلید مخفی در Render تنظیم نشده باشد یا کلید ارسال شده توسط کلاینت اشتباه باشد، درخواست را با خطای 403 رد می‌کند
-    if (!expectedSecret || receivedSecret !== expectedSecret) {
-        console.warn(`Forbidden attempt with incorrect API key from IP: ${getUserIp(req)}`);
-        return res.status(403).json({ message: 'Forbidden: You do not have permission to access this resource.' });
-    }
-    
-    // اگر کلید صحیح بود، به درخواست اجازه ادامه می‌دهد
-    next();
-};
-
-// Middleware امنیتی را قبل از تمام روت‌های /api/ اعمال می‌کنیم
+// --- اعمال میان‌افزار امنیتی بر روی تمام مسیرهای /api/ ---
+// این خط باید قبل از تعریف روت‌های API باشد
 app.use('/api/', authMiddleware);
 
-// --- پایان بخش امنیتی اضافه شده ---
 
-
+// تمام کدهای زیر دقیقاً مانند قبل و بدون تغییر هستند
 app.post('/api/check-credit-tts', (req, res) => {
     const { fingerprint, subscriptionStatus } = req.body;
     if (!fingerprint) {
@@ -85,6 +93,7 @@ app.post('/api/check-credit-tts', (req, res) => {
 });
 
 const creditCheckMiddleware = (req, res, next) => {
+    // استثنای پادکست در اینجا دیگر لازم نیست چون در authMiddleware مدیریت شده، اما برای اطمینان بیشتر باقی می‌ماند
     const referer = req.headers['referer'];
     if (referer && referer.startsWith(PODCAST_SPACE_URL)) {
         return next();
@@ -100,7 +109,6 @@ const creditCheckMiddleware = (req, res, next) => {
         return next();
     }
 
-    // اگر درخواست دارای شناسه عملیات (jobId) است و این شناسه قبلا پردازش شده، اجازه عبور بده
     if (jobId && processed_job_ids.has(jobId)) {
         console.log(`Job ID ${jobId} already processed. Bypassing credit check.`);
         return next();
@@ -119,7 +127,6 @@ const creditCheckMiddleware = (req, res, next) => {
         if (user_record.count >= USAGE_LIMIT_TTS) {
             return res.status(429).json({ message: "شما به محدودیت روزانه خود برای تولید صدا رسیده‌اید...", credits_remaining: 0 });
         }
-        // فقط در صورتی اعتبار را کم کن که اولین درخواست از یک عملیات جدید باشد یا عملیات شناسه نداشته باشد
         user_record.count++;
         if (!user_record.ips.includes(currentIp)) {
             user_record.ips.push(currentIp);
@@ -129,11 +136,9 @@ const creditCheckMiddleware = (req, res, next) => {
         usage_data_cache.push(user_record);
     }
 
-    // اگر درخواست دارای شناسه عملیات بود، آن را به لیست پردازش شده‌ها اضافه کن
     if (jobId) {
         processed_job_ids.add(jobId);
         console.log(`First request for Job ID ${jobId}. Credit consumed. User has ${USAGE_LIMIT_TTS - user_record.count} credits left.`);
-        // شناسه را پس از ۱۰ دقیقه پاک کن تا حافظه پر نشود
         setTimeout(() => {
             processed_job_ids.delete(jobId);
             console.log(`Job ID ${jobId} expired and removed from cache.`);
@@ -154,7 +159,6 @@ app.use('/api/generate', creditCheckMiddleware, proxy(() => {
     proxyReqPathResolver: (req) => '/generate',
     proxyReqBodyDecorator: (bodyContent, srcReq) => {
         if (bodyContent) {
-            // حذف فیلدهای اضافی قبل از ارسال به سرویس هوش مصنوعی
             delete bodyContent.fingerprint;
             delete bodyContent.subscriptionStatus;
             delete bodyContent.jobId;
@@ -167,6 +171,7 @@ app.use('/api/generate', creditCheckMiddleware, proxy(() => {
     }
 }));
 
+// این مسیر برای سرو کردن فایل index.html است و نباید پشت authMiddleware باشد
 app.get('*', (req, res) => {
     res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
