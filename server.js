@@ -27,6 +27,7 @@ const processed_job_ids = new Set();
 console.log("Server started with Job ID based credit system.");
 
 const getUserIp = (req) => {
+    // مهم: پراکسی وردپرس باید هدر 'x-forwarded-for' را ارسال کند
     const forwarded = req.headers['x-forwarded-for'];
     if (forwarded) {
         return forwarded.split(',')[0].trim();
@@ -36,6 +37,30 @@ const getUserIp = (req) => {
 
 app.use(express.json({ limit: '50mb' }));
 app.use(express.static(path.join(__dirname, 'public')));
+
+
+// --- شروع بخش امنیتی اضافه شده ---
+
+// این Middleware برای بررسی کلید مخفی API است
+const authMiddleware = (req, res, next) => {
+    const receivedSecret = req.headers['x-internal-api-key'];
+    const expectedSecret = process.env.INTERNAL_API_SECRET;
+
+    // اگر کلید مخفی در Render تنظیم نشده باشد یا کلید ارسال شده توسط کلاینت اشتباه باشد، درخواست را با خطای 403 رد می‌کند
+    if (!expectedSecret || receivedSecret !== expectedSecret) {
+        console.warn(`Forbidden attempt with incorrect API key from IP: ${getUserIp(req)}`);
+        return res.status(403).json({ message: 'Forbidden: You do not have permission to access this resource.' });
+    }
+    
+    // اگر کلید صحیح بود، به درخواست اجازه ادامه می‌دهد
+    next();
+};
+
+// Middleware امنیتی را قبل از تمام روت‌های /api/ اعمال می‌کنیم
+app.use('/api/', authMiddleware);
+
+// --- پایان بخش امنیتی اضافه شده ---
+
 
 app.post('/api/check-credit-tts', (req, res) => {
     const { fingerprint, subscriptionStatus } = req.body;
