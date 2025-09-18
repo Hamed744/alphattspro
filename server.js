@@ -6,9 +6,9 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 
 const USAGE_LIMIT_TTS = 5;
-const RENDER_APP_URL = 'https://alphattspro1.onrender.com'; // آدرس اپلیکیشن رندر شما (برای تست خود برنامه)
+const PODCAST_SPACE_URL = 'https://ezmary-padgenpro2.hf.space/';
+const RENDER_APP_URL = 'https://alphattspro1.onrender.com'; // <-- آدرس اپلیکیشن رندر شما
 
-// HF Workers and Load Balancing (بدون تغییر)
 const HF_WORKERS = [
     'hamed744-ttspro.hf.space',
     'hamed744-ttspro2.hf.space',
@@ -24,51 +24,60 @@ const getNextWorker = () => {
 let usage_data_cache = [];
 const processed_job_ids = new Set();
 
-console.log("Server started with Job ID based credit system and secret key authentication.");
+console.log("Server started with Job ID based credit system.");
 
 const getUserIp = (req) => {
-    return req.headers['x-forwarded-for']?.split(',')[0].trim() || req.socket.remoteAddress;
+    const forwarded = req.headers['x-forwarded-for'];
+    if (forwarded) {
+        return forwarded.split(',')[0].trim();
+    }
+    return req.socket.remoteAddress;
 };
 
 // --- START: کد امنیتی اصلاح شده ---
 const authMiddleware = (req, res, next) => {
     const referer = req.headers.referer;
     const origin = req.headers.origin;
+
+    // 1. بررسی می‌کند آیا درخواست از طرف خود اپلیکیشن Render است
+    if ((referer && referer.startsWith(RENDER_APP_URL)) || (origin && origin.startsWith(RENDER_APP_URL))) {
+        return next(); // اجازه عبور بده
+    }
+    
+    // 2. بررسی می‌کند آیا درخواست از طرف سرور وردپرس ما (با کلید مخفی) آمده است
     const receivedSecret = req.headers['x-internal-api-key'];
     const expectedSecret = process.env.INTERNAL_API_SECRET;
 
-    // 1. درخواست از طرف خود اپلیکیشن Render (برای تست)
-    if ((referer && referer.startsWith(RENDER_APP_URL)) || (origin && origin.startsWith(RENDER_APP_URL))) {
-        return next();
-    }
-    
-    // 2. درخواست از طرف سرور وردپرس با کلید مخفی
     if (expectedSecret && receivedSecret === expectedSecret) {
-        // یک فلگ به درخواست اضافه می‌کنیم تا در مراحل بعد بدانیم این درخواست معتبر است
-        req.isVerifiedProxy = true; 
-        return next();
+        return next(); // اجازه عبور بده
     }
 
-    // 3. اگر هیچ‌کدام از شرایط بالا برقرار نبود، مسدود کن
-    console.warn(`Forbidden attempt from IP: ${getUserIp(req)} with referer: ${referer}`);
-    return res.status(403).json({ message: 'Forbidden' });
+    // 3. اگر کلید مخفی وجود نداشت، بررسی می‌کند آیا درخواست از لینک پادکست قدیمی است
+    if (referer && referer.startsWith(PODCAST_SPACE_URL)) {
+        return next(); // اجازه عبور بده
+    }
+
+    // 4. اگر هیچ‌کدام از شرایط بالا برقرار نبود، دسترسی را مسدود می‌کند
+    console.warn(`Forbidden attempt from IP: ${getUserIp(req)} with referer: ${referer} and origin: ${origin}`);
+    return res.status(403).json({ message: 'Forbidden: You do not have permission to access this resource.' });
 };
+// --- END: کد امنیتی اصلاح شده ---
 
 app.use(express.json({ limit: '50mb' }));
 app.use(express.static(path.join(__dirname, 'public')));
 
+// --- اعمال میان‌افزار امنیتی بر روی تمام مسیرهای /api/ ---
 app.use('/api/', authMiddleware);
 
-// --- END: کد امنیتی اصلاح شده ---
-
-
-// مسیر بررسی اعتبار (بدون تغییر)
+// تمام کدهای زیر دقیقاً مانند قبل و بدون تغییر هستند
 app.post('/api/check-credit-tts', (req, res) => {
-    const { fingerprint } = req.body;
+    const { fingerprint, subscriptionStatus } = req.body;
     if (!fingerprint) {
         return res.status(400).json({ message: "Fingerprint is required." });
     }
-    // این مسیر فقط برای کاربران رایگان است، پس منطق آن درست است
+    if (subscriptionStatus === 'paid') {
+        return res.json({ credits_remaining: 'unlimited', limit_reached: false });
+    }
     const currentIp = getUserIp(req);
     const today = new Date().toISOString().split('T')[0];
     let user_record = usage_data_cache.find(u => u.fingerprint === fingerprint || u.ips.includes(currentIp));
@@ -83,25 +92,20 @@ app.post('/api/check-credit-tts', (req, res) => {
     res.json({ credits_remaining, limit_reached: credits_remaining <= 0 });
 });
 
-
-// --- START: میان‌افزار بررسی اعتبار کاملاً اصلاح شده ---
 const creditCheckMiddleware = (req, res, next) => {
-    // اگر درخواست از پراکسی معتبر ما آمده باشد (که خودش وضعیت اشتراک را چک کرده)
-    // دیگر نیازی به بررسی اعتبار نیست و مستقیم عبور می‌کند.
-    if (req.isVerifiedProxy) {
-        console.log(`Request from verified proxy (IP: ${getUserIp(req)}). Bypassing credit check.`);
+    const referer = req.headers['referer'];
+    if (referer && referer.startsWith(PODCAST_SPACE_URL)) {
         return next();
     }
 
-    // اگر کد به اینجا برسد، یعنی درخواست از پراکسی ما نیامده و باید کاربر رایگان در نظر گرفته شود
-    // (این حالت بیشتر برای تست مستقیم از خود صفحه رندر اتفاق می‌افتد)
-    
-    console.log(`Request without verified proxy. Applying free tier limit.`);
-    
-    const { fingerprint, jobId } = req.body;
+    const { fingerprint, subscriptionStatus, jobId } = req.body;
     
     if (!fingerprint) {
         return res.status(400).json({ message: "Fingerprint is required for this request." });
+    }
+
+    if (subscriptionStatus === 'paid') {
+        return next();
     }
 
     if (jobId && processed_job_ids.has(jobId)) {
@@ -136,15 +140,14 @@ const creditCheckMiddleware = (req, res, next) => {
         console.log(`First request for Job ID ${jobId}. Credit consumed. User has ${USAGE_LIMIT_TTS - user_record.count} credits left.`);
         setTimeout(() => {
             processed_job_ids.delete(jobId);
-        }, 10 * 60 * 1000); // 10 minutes
+            console.log(`Job ID ${jobId} expired and removed from cache.`);
+        }, 10 * 60 * 1000);
     } else {
          console.log(`Single request (no Job ID). Credit consumed. User has ${USAGE_LIMIT_TTS - user_record.count} credits left.`);
     }
 
     next();
 };
-// --- END: میان‌افزار بررسی اعتبار کاملاً اصلاح شده ---
-
 
 app.use('/api/generate', creditCheckMiddleware, proxy(() => {
     const worker = getNextWorker();
@@ -154,12 +157,10 @@ app.use('/api/generate', creditCheckMiddleware, proxy(() => {
     https: true,
     proxyReqPathResolver: (req) => '/generate',
     proxyReqBodyDecorator: (bodyContent, srcReq) => {
-        // تمام فیلدهای اضافی را حذف می‌کنیم تا به سرویس اصلی ارسال نشوند
         if (bodyContent) {
             delete bodyContent.fingerprint;
-            delete bodyContent.subscriptionStatus; // این فیلد دیگر استفاده نمی‌شود
+            delete bodyContent.subscriptionStatus;
             delete bodyContent.jobId;
-            delete bodyContent.email; // ایمیل هم نیازی به ارسال ندارد
         }
         return bodyContent;
     },
@@ -168,7 +169,6 @@ app.use('/api/generate', creditCheckMiddleware, proxy(() => {
         res.status(502).send('Error connecting to the AI service. Please try again.');
     }
 }));
-
 
 app.get('*', (req, res) => {
     res.sendFile(path.join(__dirname, 'public', 'index.html'));
