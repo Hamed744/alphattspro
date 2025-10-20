@@ -7,6 +7,7 @@ const PORT = process.env.PORT || 3000;
 
 const USAGE_LIMIT_TTS = 5;
 const PODCAST_SPACE_URL = 'https://ezmary-padgenpro2.hf.space/';
+const PODCAST_SPACE_URL = 'https://hamed744-chatlala44free.hf.space/';
 const RENDER_APP_URL = 'https://alphattspro3.onrender.com'; // <-- آدرس اپلیکیشن رندر شما
 
 const HF_WORKERS = [
