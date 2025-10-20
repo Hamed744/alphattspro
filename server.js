@@ -10,7 +10,7 @@ const USAGE_LIMIT_TTS = 5;
 // START: آدرس های مجاز در یک لیست قرار گرفتند
 const ALLOWED_HF_SPACES = [
     'https://ezmary-padgenpro2.hf.space/',
-    'https://hamed744-chatlala44free.hf.space/' // <-- آدرس چت بات شما اینجا اضافه شد
+    'https://hamed744-chatlala45free.hf.space/' // <-- آدرس چت بات شما اینجا اضافه شد
 ];
 // END: اصلاح
 
