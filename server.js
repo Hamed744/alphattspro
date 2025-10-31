@@ -14,7 +14,7 @@ const ALLOWED_HF_SPACES = [
 ];
 // END: اصلاح
 
-const RENDER_APP_URL = 'https://alphattspro1.onrender.com'; // <-- آدرس اپلیکیشن رندر شما
+const RENDER_APP_URL = 'https://alphattspro4.onrender.com'; // <-- آدرس اپلیکیشن رندر شما
 
 const HF_WORKERS = [
     'hamed744-ttspro.hf.space',
